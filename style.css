@@ -1271,10 +1271,6 @@ input, select {
     .filter-grid {
         grid-template-columns: 1fr;
     }
-
-    .filter-apply-btn {
-        width: 100%;
-    }
 }
 
 /* ============================================
@@ -1455,68 +1451,7 @@ input, select {
     background: var(--bg-primary);
 }
 
-.filter-apply-group {
-    display: flex;
-    align-items: flex-end;
-}
-
-.filter-apply-btn {
-    padding: 10px 20px;
-    font-size: 13px;
-    width: 100%;
-    justify-content: center;
-}
-
 /* Active Filter Tags */
-.active-filters {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-top: 14px;
-    padding-top: 14px;
-    border-top: 1px solid var(--border-color);
-    flex-wrap: wrap;
-}
-
-.active-filters-label {
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.filter-tags {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-
-.filter-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 12px;
-    background: rgba(59,130,246,0.15);
-    color: var(--accent-blue);
-    border: 1px solid rgba(59,130,246,0.3);
-    border-radius: 20px;
-    font-size: 11px;
-    font-weight: 600;
-}
-
-.filter-tag i {
-    cursor: pointer;
-    font-size: 10px;
-    opacity: 0.7;
-    transition: var(--transition);
-}
-
-.filter-tag i:hover {
-    opacity: 1;
-    color: var(--accent-red);
-}
-
 /* ============================================
    ANIMATIONS
    ============================================ */

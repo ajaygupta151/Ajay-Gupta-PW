@@ -459,8 +459,10 @@ async function initDashboard() {
         if (role.level <= 1) {
             const c = findCenterById(user.center);
             sel.innerHTML += `<option value="${user.center}">${c ? c.name : user.center}</option>`;
+            console.log(`[CASCADE] populateCenterFilter: CL role, added own center '${user.center}'`);
             return;
         }
+        let count = 0;
         orgData.regions.forEach(r => {
             if (regionId && r.id !== regionId) return;
             r.bhs.forEach(bh => {
@@ -472,9 +474,11 @@ async function initDashboard() {
                 }
                 bh.centers.forEach(c => {
                     sel.innerHTML += `<option value="${c.id}">${c.name} (${bh.name})</option>`;
+                    count++;
                 });
             });
         });
+        console.log(`[CASCADE] populateCenterFilter: region='${regionId}' bh='${bhId}' rcl='${rclId}' → added ${count} centers`);
     }
 
     function populateCLFilter(regionId, bhId, rclId, centerId) {
@@ -521,6 +525,7 @@ async function initDashboard() {
     // =============================================
     function onFilterChange(changedFilter) {
         const region = document.getElementById('filterRegion').value;
+        console.log(`[CASCADE] onFilterChange called with: '${changedFilter}' | region='${region}'`);
 
         // Populate BH if region changed or full rebuild
         if (changedFilter === 'region' || !changedFilter) {
@@ -529,25 +534,31 @@ async function initDashboard() {
         }
 
         const bh = document.getElementById('filterBH').value;
+        console.log(`[CASCADE] current BH value: '${bh}'`);
 
         // Populate RCL if BH or region changed, or full rebuild
         if (changedFilter === 'region' || changedFilter === 'bh' || !changedFilter) {
+            console.log(`[CASCADE] → populating RCL with region='${region}' bh='${bh}'`);
             populateRCLFilter(region, bh);
             autoSelectOrShow('filterRCL', 'filterRCLGroup');
         }
 
         const rcl = document.getElementById('filterRCL').value;
+        console.log(`[CASCADE] current RCL value: '${rcl}'`);
 
         // Populate Center if any parent changed, or full rebuild
         if (changedFilter === 'region' || changedFilter === 'bh' || changedFilter === 'rcl' || !changedFilter) {
+            console.log(`[CASCADE] → populating Center with region='${region}' bh='${bh}' rcl='${rcl}'`);
             populateCenterFilter(region, bh, rcl);
             autoSelectOrShow('filterCenter', 'filterCenterGroup');
         }
 
         const center = document.getElementById('filterCenter').value;
+        console.log(`[CASCADE] current Center value: '${center}'`);
 
         // Populate CL if any parent changed, or full rebuild
         if (changedFilter === 'region' || changedFilter === 'bh' || changedFilter === 'rcl' || changedFilter === 'center' || !changedFilter) {
+            console.log(`[CASCADE] → populating CL with region='${region}' bh='${bh}' rcl='${rcl}' center='${center}'`);
             populateCLFilter(region, bh, rcl, center);
             autoSelectOrShow('filterCL', 'filterCLGroup');
         }
@@ -557,8 +568,8 @@ async function initDashboard() {
     }
 
     /**
-     * Auto-select if only 1 real option, hide group.
-     * If multiple options, show group so user can choose.
+     * Auto-select if only 1 real option.
+     * Keep group always visible so user can manually change selection.
      */
     function autoSelectOrShow(selId, groupId) {
         const selectEl = document.getElementById(selId);
@@ -569,10 +580,9 @@ async function initDashboard() {
 
         if (realOptions.length === 1) {
             selectEl.value = realOptions[0].value;
-            groupEl.style.display = 'none';
-        } else {
-            groupEl.style.display = '';
         }
+        // Always keep visible — user should be able to change any dropdown
+        groupEl.style.display = '';
     }
 
     // =============================================
@@ -690,9 +700,6 @@ async function initDashboard() {
 
         // Update Team Performance
         updateTeamList(centers);
-
-        // Update Filter Tags
-        updateFilterTags();
     }
 
     function updateTrend(elementId, value, total) {
@@ -775,43 +782,6 @@ async function initDashboard() {
             });
         }, { threshold: 0.5 });
         bars.forEach(bar => observer.observe(bar));
-    }
-
-    function updateFilterTags() {
-        const container = document.getElementById('activeFilters');
-        const tagsEl = document.getElementById('filterTags');
-        const tags = [];
-
-        const region = document.getElementById('filterRegion');
-        const bh = document.getElementById('filterBH');
-        const rcl = document.getElementById('filterRCL');
-        const center = document.getElementById('filterCenter');
-        const cl = document.getElementById('filterCL');
-
-        if (region.value) tags.push({ label: 'Region', value: region.options[region.selectedIndex].text, clearId: 'filterRegion' });
-        if (bh.value) tags.push({ label: 'BH', value: bh.options[bh.selectedIndex].text, clearId: 'filterBH' });
-        if (rcl.value) tags.push({ label: 'RCL', value: rcl.options[rcl.selectedIndex].text, clearId: 'filterRCL' });
-        if (center.value) tags.push({ label: 'Center', value: center.options[center.selectedIndex].text, clearId: 'filterCenter' });
-        if (cl.value) tags.push({ label: 'CL', value: cl.options[cl.selectedIndex].text, clearId: 'filterCL' });
-
-        if (tags.length === 0) {
-            container.style.display = 'none';
-            return;
-        }
-
-        container.style.display = 'flex';
-        tagsEl.innerHTML = tags.map(t =>
-            `<span class="filter-tag"><strong>${t.label}:</strong> ${t.value} <i class="fas fa-times" data-clear="${t.clearId}"></i></span>`
-        ).join('');
-
-        // Tag remove handlers
-        tagsEl.querySelectorAll('.fa-times').forEach(icon => {
-            icon.addEventListener('click', () => {
-                const selId = icon.getAttribute('data-clear');
-                document.getElementById(selId).value = '';
-                onFilterChange();  // no arg = rebuild all
-            });
-        });
     }
 
     // =============================================
@@ -965,10 +935,22 @@ async function initDashboard() {
     // =============================================
 
     // Filter cascade: when upper filter changes, pass which one changed
-    document.getElementById('filterRegion').addEventListener('change', () => onFilterChange('region'));
-    document.getElementById('filterBH').addEventListener('change', () => onFilterChange('bh'));
-    document.getElementById('filterRCL').addEventListener('change', () => onFilterChange('rcl'));
-    document.getElementById('filterCenter').addEventListener('change', () => onFilterChange('center'));
+    document.getElementById('filterRegion').addEventListener('change', () => {
+        console.log('[FILTER] Region changed to:', document.getElementById('filterRegion').value);
+        onFilterChange('region');
+    });
+    document.getElementById('filterBH').addEventListener('change', () => {
+        console.log('[FILTER] BH changed to:', document.getElementById('filterBH').value);
+        onFilterChange('bh');
+    });
+    document.getElementById('filterRCL').addEventListener('change', () => {
+        console.log('[FILTER] RCL changed to:', document.getElementById('filterRCL').value);
+        onFilterChange('rcl');
+    });
+    document.getElementById('filterCenter').addEventListener('change', () => {
+        console.log('[FILTER] Center changed to:', document.getElementById('filterCenter').value);
+        onFilterChange('center');
+    });
 
     // Reset Filters
     document.getElementById('filterResetBtn').addEventListener('click', () => {
@@ -1167,6 +1149,9 @@ async function initDashboard() {
         const modal = document.getElementById('forcePasswordModal');
         if (!modal) return;
         modal.style.display = 'flex';
+        // Force reflow then add active class so opacity transitions to 1
+        void modal.offsetHeight;
+        modal.classList.add('active');
 
         // Strength checker
         document.getElementById('forceNewPassword')?.addEventListener('input', () => {
