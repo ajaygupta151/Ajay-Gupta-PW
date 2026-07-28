@@ -109,29 +109,6 @@
             </div>
         </header>
 
-        <!-- ROLE SWITCHER BAR -->
-        <section class="role-switcher-bar">
-            <div class="role-switcher-left">
-                <div class="role-badge" id="currentRoleBadge">
-                    <i class="fas fa-user-shield"></i>
-                    <span id="currentRoleText">Admin</span>
-                </div>
-                <span class="role-switcher-label">Logged in as:</span>
-                <select id="roleSelect" class="role-select">
-                    <option value="admin">Admin (Full Access)</option>
-                    <option value="rbh">RBH - Rajesh Kumar (Regional Branch Head)</option>
-                    <option value="rcl">RCL - Amit Verma (Regional Center Lead)</option>
-                    <option value="bh">BH - Manoj Singh (Branch Head)</option>
-                    <option value="cl">CL - Vikram Thapa (Center Lead)</option>
-                </select>
-            </div>
-            <div class="role-switcher-right">
-                <span class="access-indicator" id="accessIndicator">
-                    <i class="fas fa-lock-open"></i> Full Access
-                </span>
-            </div>
-        </section>
-
         <!-- FILTER SECTION -->
         <section class="filter-section" id="filterSection">
             <div class="filter-header">
@@ -189,13 +166,6 @@
                     <select id="filterCL" class="filter-select">
                         <option value="">All CL</option>
                     </select>
-                </div>
-
-                <!-- Apply Button -->
-                <div class="filter-group filter-apply-group">
-                    <button class="btn btn-primary filter-apply-btn" id="applyFiltersBtn">
-                        <i class="fas fa-check"></i> Apply Filters
-                    </button>
                 </div>
             </div>
 
@@ -473,8 +443,49 @@
     <!-- Notification Toast -->
     <div class="toast-container" id="toastContainer"></div>
 
+    <!-- ===== FORCED PASSWORD CHANGE MODAL ===== -->
+    <div class="modal-overlay" id="forcePasswordModal" style="display:none;">
+        <div class="modal-card" style="max-width: 460px; width: 100%; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 28px; box-shadow: 0 20px 60px rgba(0,0,0,0.4);">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <div style="font-size: 2.5rem; margin-bottom: 12px;">
+                    <i class="fas fa-shield-alt" style="color: var(--accent-blue);"></i>
+                </div>
+                <h3 style="margin-bottom: 6px; font-size: 1.2rem; font-weight: 700; color: var(--text-primary);">Change Your Password</h3>
+                <p style="font-size: 0.85rem; color: var(--text-muted);">You're using the default password. For security, please set a new password.</p>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); margin-bottom: 6px;">New Password</label>
+                    <input type="password" id="forceNewPassword" placeholder="Enter new password" style="width: 100%; padding: 10px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary); font-size: 0.9rem;">
+                    <div style="height: 4px; background: var(--bg-primary); border-radius: 2px; margin-top: 6px; overflow: hidden;">
+                        <div id="forceStrengthFill" style="height: 100%; width: 0%; border-radius: 2px; transition: all 0.3s;"></div>
+                    </div>
+                    <span id="forceStrengthText" style="font-size: 0.75rem; font-weight: 600;"></span>
+                </div>
+                <div style="margin-bottom: 8px;">
+                    <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); margin-bottom: 6px;">Confirm Password</label>
+                    <div style="position: relative;">
+                        <input type="password" id="forceConfirmPassword" placeholder="Re-enter new password" style="width: 100%; padding: 10px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary); font-size: 0.9rem;">
+                        <span id="forceConfirmStatus" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%);"></span>
+                    </div>
+                </div>
+                <span id="forceError" style="display: block; text-align: center; color: #ef4444; font-size: 0.8rem; min-height: 18px; margin-top: 4px;"></span>
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button id="forceSkipBtn" style="padding: 10px 20px; border-radius: var(--radius-sm); font-weight: 600; font-size: 0.85rem; border: 1px solid var(--border-color); cursor: pointer; background: transparent; color: var(--text-muted); transition: var(--transition);">
+                    Skip for Now
+                </button>
+                <button id="forceChangeBtn" style="padding: 10px 20px; border-radius: var(--radius-sm); font-weight: 600; font-size: 0.85rem; border: none; cursor: pointer; background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple)); color: white; transition: var(--transition);">
+                    <span class="btn-text">Update Password</span>
+                    <span class="btn-loader" style="display:none;"><i class="fas fa-circle-notch fa-spin"></i></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="users.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

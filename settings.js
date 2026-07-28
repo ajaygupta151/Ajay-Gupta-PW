@@ -265,14 +265,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    document.getElementById('changePasswordBtn')?.addEventListener('click', () => {
+    document.getElementById('changePasswordBtn')?.addEventListener('click', async () => {
         const current = document.getElementById('currentPassword').value;
         const newPw = document.getElementById('settingsNewPassword').value;
         const confirm = document.getElementById('settingsConfirmPassword').value;
         const btn = document.getElementById('changePasswordBtn');
 
         if (!current) { showToast('Enter your current password', 'error'); return; }
-        if (current !== USERS_DB[session.email]?.password) { showToast('Current password is incorrect', 'error'); return; }
         if (newPw.length < 8) { showToast('New password must be at least 8 characters', 'error'); return; }
         if (newPw !== confirm) { showToast('Passwords do not match', 'error'); return; }
 
@@ -280,7 +279,33 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.querySelector('.btn-loader').style.display = 'inline';
         btn.disabled = true;
 
-        setTimeout(() => {
+        try {
+            // Authenticate against dynamic sheet data
+            const authResult = await authenticateUser(session.email, current);
+            
+            if (!authResult.success) {
+                showToast('Current password is incorrect', 'error');
+                btn.querySelector('.btn-text').style.display = '';
+                btn.querySelector('.btn-loader').style.display = 'none';
+                btn.disabled = false;
+                return;
+            }
+
+            // Update password
+            const result = await changeUserPassword(session.email, newPw);
+            
+            if (!result.success) {
+                showToast(result.error || 'Failed to update password', 'error');
+                btn.querySelector('.btn-text').style.display = '';
+                btn.querySelector('.btn-loader').style.display = 'none';
+                btn.disabled = false;
+                return;
+            }
+
+            // Update session to reflect password change
+            session.isDefaultPassword = false;
+            localStorage.setItem('cadence-session', JSON.stringify(session));
+
             btn.querySelector('.btn-text').style.display = '';
             btn.querySelector('.btn-loader').style.display = 'none';
             btn.disabled = false;
@@ -288,17 +313,14 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('settingsNewPassword').value = '';
             document.getElementById('settingsConfirmPassword').value = '';
             showToast('Password updated successfully!', 'success');
-        }, 1200);
+        } catch (error) {
+            console.error('Password change error:', error);
+            showToast('Failed to update password. Please try again.', 'error');
+            btn.querySelector('.btn-text').style.display = '';
+            btn.querySelector('.btn-loader').style.display = 'none';
+            btn.disabled = false;
+        }
     });
-
-    // Simple users DB reference for password check
-    const USERS_DB = {
-        'admin@cadence.com': { password: 'admin123' },
-        'rajesh@cadence.com': { password: 'rbh123' },
-        'amit@cadence.com': { password: 'rcl123' },
-        'manoj@cadence.com': { password: 'bh123' },
-        'vikram@cadence.com': { password: 'cl123' }
-    };
 
     // ========== LANGUAGE & REGION ==========
     // Load saved regional settings
@@ -430,6 +452,242 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
+
+    // ========== OTP PASSWORD RESET FROM SETTINGS ==========
+    let settingsOtp = '';
+    let settingsOtpEmail = '';
+
+    function showOtpStep(stepNum) {
+        document.querySelectorAll('.otp-step').forEach(s => s.style.display = 'none');
+        document.getElementById(`otpStep${stepNum}`).style.display = 'block';
+    }
+
+    function openOtpModal() {
+        settingsOtpEmail = session.email;
+        document.getElementById('otpResetEmail').value = settingsOtpEmail;
+        document.getElementById('otpModal').style.display = 'flex';
+        showOtpStep(1);
+    }
+
+    function closeOtpModal() {
+        document.getElementById('otpModal').style.display = 'none';
+        // Clear all OTP inputs
+        document.querySelectorAll('#modalOtpInputs .otp-input').forEach(i => { i.value = ''; i.classList.remove('filled'); });
+        document.getElementById('otpNewPassword').value = '';
+        document.getElementById('otpConfirmPassword').value = '';
+        document.getElementById('modalOtpError').textContent = '';
+        document.getElementById('modalResetError').textContent = '';
+    }
+
+    // Open modal
+    document.getElementById('forgotPasswordFromSettings')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        openOtpModal();
+    });
+
+    // Cancel buttons
+    ['otpCancel1', 'otpCancel2', 'otpCancel3'].forEach(id => {
+        document.getElementById(id)?.addEventListener('click', closeOtpModal);
+    });
+
+    // Close on overlay click
+    document.getElementById('otpModal')?.addEventListener('click', (e) => {
+        if (e.target === document.getElementById('otpModal')) closeOtpModal();
+    });
+
+    // Send OTP
+    document.getElementById('otpSendBtn')?.addEventListener('click', async () => {
+        const btn = document.getElementById('otpSendBtn');
+        btn.querySelector('.btn-text').style.display = 'none';
+        btn.querySelector('.btn-loader').style.display = 'inline';
+        btn.disabled = true;
+
+        try {
+            settingsOtp = generateOTP();
+            document.getElementById('otpModalEmail').textContent = settingsOtpEmail;
+            document.getElementById('modalGeneratedOtp').textContent = settingsOtp;
+            await sendOTP(settingsOtpEmail, settingsOtp);
+            showOtpStep(2);
+            startModalOtpTimer();
+            showToast(`OTP sent to ${settingsOtpEmail}`, 'success');
+        } catch (err) {
+            showToast('Failed to send OTP', 'error');
+        }
+
+        btn.querySelector('.btn-text').style.display = '';
+        btn.querySelector('.btn-loader').style.display = 'none';
+        btn.disabled = false;
+    });
+
+    // Copy OTP
+    document.getElementById('modalCopyOtp')?.addEventListener('click', () => {
+        navigator.clipboard?.writeText(settingsOtp);
+        showToast('OTP copied!', 'success');
+    });
+
+    // Modal OTP inputs
+    const modalOtpInputs = document.querySelectorAll('#modalOtpInputs .otp-input');
+    modalOtpInputs.forEach((input, index) => {
+        input.addEventListener('input', (e) => {
+            const val = e.target.value.replace(/[^0-9]/g, '');
+            e.target.value = val;
+            if (val) {
+                e.target.classList.add('filled');
+                if (index < modalOtpInputs.length - 1) modalOtpInputs[index + 1].focus();
+            } else {
+                e.target.classList.remove('filled');
+            }
+        });
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Backspace' && !e.target.value && index > 0) {
+                modalOtpInputs[index - 1].focus();
+                modalOtpInputs[index - 1].value = '';
+                modalOtpInputs[index - 1].classList.remove('filled');
+            }
+        });
+    });
+
+    // Verify OTP
+    document.getElementById('modalVerifyOtpBtn')?.addEventListener('click', () => {
+        const entered = Array.from(modalOtpInputs).map(i => i.value).join('');
+        const error = document.getElementById('modalOtpError');
+        const btn = document.getElementById('modalVerifyOtpBtn');
+
+        error.textContent = '';
+        if (entered.length !== 6) { error.textContent = 'Please enter the complete 6-digit OTP'; return; }
+
+        btn.querySelector('.btn-text').style.display = 'none';
+        btn.querySelector('.btn-loader').style.display = 'inline';
+        btn.disabled = true;
+
+        setTimeout(() => {
+            const result = verifyOTP(settingsOtpEmail, entered);
+            if (!result.success) {
+                error.textContent = result.error;
+                btn.querySelector('.btn-text').style.display = '';
+                btn.querySelector('.btn-loader').style.display = 'none';
+                btn.disabled = false;
+                return;
+            }
+            showToast('OTP verified!', 'success');
+            showOtpStep(3);
+            btn.querySelector('.btn-text').style.display = '';
+            btn.querySelector('.btn-loader').style.display = 'none';
+            btn.disabled = false;
+        }, 800);
+    });
+
+    // Resend OTP
+    document.getElementById('modalResendOtp')?.addEventListener('click', async (e) => {
+        e.preventDefault();
+        settingsOtp = generateOTP();
+        document.getElementById('modalGeneratedOtp').textContent = settingsOtp;
+        await sendOTP(settingsOtpEmail, settingsOtp);
+        startModalOtpTimer();
+        showToast('New OTP sent!', 'success');
+    });
+
+    // Modal OTP timer
+    function startModalOtpTimer() {
+        const timerEl = document.getElementById('modalOtpTimer');
+        const resendEl = document.getElementById('modalResendOtp');
+        let seconds = 30;
+        resendEl.style.display = 'none';
+        timerEl.style.display = 'inline';
+        const interval = setInterval(() => {
+            seconds--;
+            const min = String(Math.floor(seconds / 60)).padStart(2, '0');
+            const sec = String(seconds % 60).padStart(2, '0');
+            timerEl.innerHTML = `Resend OTP in <strong>${min}:${sec}</strong>`;
+            if (seconds <= 0) {
+                clearInterval(interval);
+                timerEl.style.display = 'none';
+                resendEl.style.display = 'inline';
+            }
+        }, 1000);
+    }
+
+    // New password strength in modal
+    document.getElementById('otpNewPassword')?.addEventListener('input', () => {
+        const val = document.getElementById('otpNewPassword').value;
+        let score = 0;
+        if (val.length >= 8) score++;
+        if (/[A-Z]/.test(val)) score++;
+        if (/[a-z]/.test(val)) score++;
+        if (/[0-9]/.test(val)) score++;
+        if (/[^A-Za-z0-9]/.test(val)) score++;
+        const levels = [
+            { width: '0%', color: 'transparent', label: '' },
+            { width: '20%', color: '#ef4444', label: 'Weak' },
+            { width: '40%', color: '#f97316', label: 'Fair' },
+            { width: '60%', color: '#eab308', label: 'Good' },
+            { width: '80%', color: '#22c55e', label: 'Strong' },
+            { width: '100%', color: '#22c55e', label: 'Very Strong' }
+        ];
+        const level = levels[score] || levels[0];
+        document.getElementById('modalStrengthFill').style.width = level.width;
+        document.getElementById('modalStrengthFill').style.background = level.color;
+        document.getElementById('modalStrengthText').textContent = level.label;
+        document.getElementById('modalStrengthText').style.color = level.color;
+    });
+
+    // Confirm password match in modal
+    document.getElementById('otpConfirmPassword')?.addEventListener('input', () => {
+        const val = document.getElementById('otpConfirmPassword').value;
+        const newPw = document.getElementById('otpNewPassword').value;
+        const status = document.getElementById('modalConfirmStatus');
+        if (!val) { status.className = 'input-status'; status.innerHTML = ''; return; }
+        if (val === newPw) {
+            status.className = 'input-status valid';
+            status.innerHTML = '<i class="fas fa-check-circle"></i>';
+        } else {
+            status.className = 'input-status invalid';
+            status.innerHTML = '<i class="fas fa-times-circle"></i>';
+        }
+    });
+
+    // Reset password via modal
+    document.getElementById('modalResetBtn')?.addEventListener('click', async () => {
+        const newPw = document.getElementById('otpNewPassword').value;
+        const confirmPw = document.getElementById('otpConfirmPassword').value;
+        const error = document.getElementById('modalResetError');
+        const btn = document.getElementById('modalResetBtn');
+
+        error.textContent = '';
+        if (newPw.length < 8) { error.textContent = 'Password must be at least 8 characters'; return; }
+        if (newPw !== confirmPw) { error.textContent = 'Passwords do not match'; return; }
+
+        btn.querySelector('.btn-text').style.display = 'none';
+        btn.querySelector('.btn-loader').style.display = 'inline';
+        btn.disabled = true;
+
+        try {
+            const result = await changeUserPassword(settingsOtpEmail, newPw);
+            if (!result.success) {
+                error.textContent = result.error;
+                btn.querySelector('.btn-text').style.display = '';
+                btn.querySelector('.btn-loader').style.display = 'none';
+                btn.disabled = false;
+                return;
+            }
+
+            // Update session
+            session.isDefaultPassword = false;
+            localStorage.setItem('cadence-session', JSON.stringify(session));
+
+            showOtpStep(4);
+            showToast('Password updated successfully!', 'success');
+        } catch (err) {
+            error.textContent = 'Failed to update password';
+        }
+
+        btn.querySelector('.btn-text').style.display = '';
+        btn.querySelector('.btn-loader').style.display = 'none';
+        btn.disabled = false;
+    });
+
+    // Success button closes modal
+    document.getElementById('modalSuccessBtn')?.addEventListener('click', closeOtpModal);
 
     // ========== LOGOUT ==========
     document.getElementById('logoutBtn')?.addEventListener('click', () => {

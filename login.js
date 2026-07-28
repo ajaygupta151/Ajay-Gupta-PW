@@ -1,19 +1,11 @@
 /* ============================================
    CADENCE LOGIN - Authentication Logic
-   Multi-theme + OTP + Password Reset
+   Dynamic sheet-based auth + OTP + Password Reset
    ============================================ */
 
 document.addEventListener('DOMContentLoaded', () => {
 
-    // ========== DEMO USERS DATABASE ==========
-    const USERS_DB = {
-        'admin@cadence.com': { password: 'admin123', name: 'Administrator', role: 'admin', region: null, bh: null, center: null },
-        'rajesh@cadence.com': { password: 'rbh123', name: 'Rajesh Kumar', role: 'rbh', region: 'north', bh: 'bh-n1', center: null },
-        'amit@cadence.com': { password: 'rcl123', name: 'Amit Verma', role: 'rcl', region: 'north', bh: null, center: null },
-        'manoj@cadence.com': { password: 'bh123', name: 'Manoj Singh', role: 'bh', region: 'south', bh: 'bh-s1', center: null },
-        'vikram@cadence.com': { password: 'cl123', name: 'Vikram Thapa', role: 'cl', region: 'north', bh: 'bh-n1', center: 'c-n1-a' }
-    };
-
+    // ========== ROLE LABELS ==========
     const ROLE_LABELS = {
         admin: 'Administrator',
         rbh: 'Regional Branch Head',
@@ -88,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupTogglePassword('toggleRegPassword', 'regPassword');
 
     // ========== LOGIN FORM ==========
-    document.getElementById('loginForm')?.addEventListener('submit', (e) => {
+    document.getElementById('loginForm')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = document.getElementById('loginEmail').value.trim();
         const password = document.getElementById('loginPassword').value;
@@ -119,34 +111,32 @@ document.addEventListener('DOMContentLoaded', () => {
         loginBtn.querySelector('.btn-loader').style.display = 'inline';
         loginBtn.disabled = true;
 
-        // Simulate API call
-        setTimeout(() => {
-            const user = USERS_DB[email];
-
-            if (!user) {
-                emailError.textContent = 'No account found with this email';
+        try {
+            // Authenticate against dynamic sheet data
+            const result = await authenticateUser(email, password);
+            
+            if (!result.success) {
+                passwordError.textContent = result.error;
                 loginBtn.querySelector('.btn-text').style.display = '';
                 loginBtn.querySelector('.btn-loader').style.display = 'none';
                 loginBtn.disabled = false;
                 return;
             }
 
-            if (user.password !== password) {
-                passwordError.textContent = 'Incorrect password. Please try again.';
-                loginBtn.querySelector('.btn-text').style.display = '';
-                loginBtn.querySelector('.btn-loader').style.display = 'none';
-                loginBtn.disabled = false;
-                return;
-            }
+            const user = result.user;
 
             // Success!
             const session = {
-                email,
+                email: user.email,
                 name: user.name,
                 role: user.role,
                 region: user.region,
-                bh: user.bh,
+                vertical: user.vertical,
                 center: user.center,
+                rcl: user.rcl,
+                bh: user.bh,
+                rbh: user.rbh,
+                isDefaultPassword: user.isDefaultPassword,
                 loginTime: new Date().toISOString()
             };
 
@@ -158,10 +148,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
             showToast(`Welcome back, ${user.name}!`, 'success');
 
-            setTimeout(() => {
-                window.location.href = 'index.html';
-            }, 800);
-        }, 1200);
+            // Check if user needs to change password
+            if (user.isDefaultPassword) {
+                setTimeout(() => {
+                    showToast('Please change your default password', 'info');
+                    // Could redirect to password change page
+                    window.location.href = 'index.html';
+                }, 800);
+            } else {
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 800);
+            }
+        } catch (error) {
+            console.error('Login error:', error);
+            passwordError.textContent = 'Login failed. Please try again.';
+            loginBtn.querySelector('.btn-text').style.display = '';
+            loginBtn.querySelector('.btn-loader').style.display = 'none';
+            loginBtn.disabled = false;
+        }
     });
 
     // Pre-fill remembered email
@@ -204,7 +209,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Send OTP
-    document.getElementById('forgotForm')?.addEventListener('submit', (e) => {
+    document.getElementById('forgotForm')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = document.getElementById('forgotEmail').value.trim();
         const error = document.getElementById('forgotEmailError');
@@ -219,8 +224,11 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.querySelector('.btn-loader').style.display = 'inline';
         btn.disabled = true;
 
-        setTimeout(() => {
-            if (!USERS_DB[email]) {
+        try {
+            // Check if user exists
+            const user = await getUserByEmail(email);
+            
+            if (!user) {
                 error.textContent = 'No account found with this email';
                 btn.querySelector('.btn-text').style.display = '';
                 btn.querySelector('.btn-loader').style.display = 'none';
@@ -229,10 +237,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             currentResetEmail = email;
-            generatedOtp = String(Math.floor(100000 + Math.random() * 900000));
+            generatedOtp = generateOTP();
 
             document.getElementById('otpEmailDisplay').textContent = email;
             document.getElementById('generatedOtp').textContent = generatedOtp;
+
+            // Send OTP (simulated)
+            await sendOTP(email, generatedOtp);
 
             showCard('otpCard');
             startOtpTimer();
@@ -242,7 +253,13 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.disabled = false;
 
             showToast(`OTP sent to ${email}`, 'success');
-        }, 1500);
+        } catch (error) {
+            console.error('Send OTP error:', error);
+            error.textContent = 'Failed to send OTP. Please try again.';
+            btn.querySelector('.btn-text').style.display = '';
+            btn.querySelector('.btn-loader').style.display = 'none';
+            btn.disabled = false;
+        }
     });
 
     // Copy OTP
@@ -306,8 +323,10 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.disabled = true;
 
         setTimeout(() => {
-            if (entered !== generatedOtp) {
-                error.textContent = 'Invalid OTP. Please try again.';
+            const result = verifyOTP(currentResetEmail, entered);
+            
+            if (!result.success) {
+                error.textContent = result.error;
                 btn.querySelector('.btn-text').style.display = '';
                 btn.querySelector('.btn-loader').style.display = 'none';
                 btn.disabled = false;
@@ -330,8 +349,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('resendOtp')?.addEventListener('click', (e) => {
         e.preventDefault();
-        generatedOtp = String(Math.floor(100000 + Math.random() * 900000));
+        generatedOtp = generateOTP();
         document.getElementById('generatedOtp').textContent = generatedOtp;
+        sendOTP(currentResetEmail, generatedOtp);
         startOtpTimer();
         showToast('New OTP sent!', 'success');
     });
@@ -360,7 +380,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ========== RESET PASSWORD ==========
-    document.getElementById('resetForm')?.addEventListener('submit', (e) => {
+    document.getElementById('resetForm')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const newPass = document.getElementById('newPassword').value;
         const confirmPass = document.getElementById('confirmPassword').value;
@@ -382,10 +402,16 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.querySelector('.btn-loader').style.display = 'inline';
         btn.disabled = true;
 
-        setTimeout(() => {
-            // Update password in users DB (simulated)
-            if (USERS_DB[currentResetEmail]) {
-                USERS_DB[currentResetEmail].password = newPass;
+        try {
+            // Update password in dynamic database
+            const result = await changeUserPassword(currentResetEmail, newPass);
+            
+            if (!result.success) {
+                confirmError.textContent = result.error;
+                btn.querySelector('.btn-text').style.display = '';
+                btn.querySelector('.btn-loader').style.display = 'none';
+                btn.disabled = false;
+                return;
             }
 
             showCard('successCard');
@@ -397,7 +423,13 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.disabled = false;
 
             showToast('Password reset successful!', 'success');
-        }, 1500);
+        } catch (error) {
+            console.error('Reset password error:', error);
+            confirmError.textContent = 'Failed to reset password. Please try again.';
+            btn.querySelector('.btn-text').style.display = '';
+            btn.querySelector('.btn-loader').style.display = 'none';
+            btn.disabled = false;
+        }
     });
 
     // Password strength checker
@@ -501,7 +533,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showCard('loginCard');
     });
 
-    document.getElementById('registerForm')?.addEventListener('submit', (e) => {
+    document.getElementById('registerForm')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const firstName = document.getElementById('regFirstName').value.trim();
         const lastName = document.getElementById('regLastName').value.trim();
@@ -515,7 +547,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        if (USERS_DB[email]) {
+        // Check if user already exists
+        const existingUser = await getUserByEmail(email);
+        if (existingUser) {
             showToast('An account with this email already exists', 'error');
             return;
         }
@@ -525,14 +559,23 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.disabled = true;
 
         setTimeout(() => {
-            USERS_DB[email] = {
-                password,
+            // In production, this would be a server call
+            // For demo, we'll add to localStorage
+            const users = JSON.parse(localStorage.getItem('cadence-users') || '{}');
+            users[email.toLowerCase()] = {
+                password: password,
                 name: `${firstName} ${lastName}`,
-                role,
+                role: role,
                 region: null,
+                vertical: null,
+                center: null,
+                rcl: null,
                 bh: null,
-                center: null
+                rbh: null,
+                isDefaultPassword: false,
+                createdAt: new Date().toISOString()
             };
+            localStorage.setItem('cadence-users', JSON.stringify(users));
 
             showCard('successCard');
             document.getElementById('successTitle').textContent = 'Account Created!';

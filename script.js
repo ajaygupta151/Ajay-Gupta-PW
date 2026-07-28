@@ -1,6 +1,6 @@
 /* ============================================
    CADENCE REPORT - JavaScript
-   Dashboard with Role-Based Hierarchical Filters
+   Dashboard with Dynamic Sheet-Based Role Hierarchy
    ============================================ */
 
 document.addEventListener('DOMContentLoaded', initDashboard);
@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', initDashboard);
 // Also run if DOMContentLoaded already fired
 if (document.readyState !== 'loading') initDashboard();
 
-function initDashboard() {
+async function initDashboard() {
     // Prevent double-init
     if (window.__cadenceInitDone) return;
     window.__cadenceInitDone = true;
@@ -23,149 +23,195 @@ function initDashboard() {
     try {
 
     // =============================================
-    // 1. ORGANIZATIONAL DATA MODEL
+    // 1. FETCH LIVE DATA FROM GOOGLE SHEETS
     // =============================================
-    const orgData = {
-        regions: [
-            {
-                id: 'north',
-                name: 'North Region',
-                bhs: [
-                    {
-                        id: 'bh-n1',
-                        name: 'Rajesh Kumar',
-                        centers: [
-                            {
-                                id: 'c-n1-a',
-                                name: 'Delhi Central',
-                                cl: { id: 'cl-vt', name: 'Vikram Thapa' },
-                                tasks: { total: 42, completed: 35, pending: 5, overdue: 2 },
-                                monthly: { assigned: [5, 6, 4, 7, 5, 8, 6, 9, 7, 10, 8, 11], completed: [4, 5, 3, 6, 4, 7, 5, 8, 6, 9, 7, 10], overdue: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] }
-                            },
-                            {
-                                id: 'c-n1-b',
-                                name: 'Delhi North',
-                                cl: { id: 'cl-pj', name: 'Priya Joshi' },
-                                tasks: { total: 38, completed: 30, pending: 6, overdue: 2 },
-                                monthly: { assigned: [4, 5, 4, 6, 5, 7, 5, 8, 6, 9, 7, 10], completed: [3, 4, 3, 5, 4, 6, 4, 7, 5, 8, 6, 9], overdue: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] }
-                            }
-                        ]
-                    },
-                    {
-                        id: 'bh-n2',
-                        name: 'Suresh Patel',
-                        centers: [
-                            {
-                                id: 'c-n2-a',
-                                name: 'Jaipur Hub',
-                                cl: { id: 'cl-rs', name: 'Rahul Sharma' },
-                                tasks: { total: 35, completed: 28, pending: 5, overdue: 2 },
-                                monthly: { assigned: [4, 5, 3, 6, 4, 7, 5, 8, 6, 9, 7, 9], completed: [3, 4, 2, 5, 3, 6, 4, 7, 5, 8, 6, 8], overdue: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] }
-                            }
-                        ]
-                    }
-                ],
-                rcls: [
-                    {
-                        id: 'rcl-a1',
-                        name: 'Amit Verma',
-                        bhs: ['bh-n1', 'bh-n2']
-                    },
-                    {
-                        id: 'rcl-a2',
-                        name: 'Deepak Gupta',
-                        bhs: ['bh-n1']
-                    }
-                ]
-            },
-            {
-                id: 'south',
-                name: 'South Region',
-                bhs: [
-                    {
-                        id: 'bh-s1',
-                        name: 'Manoj Singh',
-                        centers: [
-                            {
-                                id: 'c-s1-a',
-                                name: 'Chennai Main',
-                                cl: { id: 'cl-ak', name: 'Ankit Kumar' },
-                                tasks: { total: 45, completed: 38, pending: 4, overdue: 3 },
-                                monthly: { assigned: [5, 7, 5, 8, 6, 9, 7, 10, 8, 11, 9, 12], completed: [4, 6, 4, 7, 5, 8, 6, 9, 7, 10, 8, 11], overdue: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] }
-                            },
-                            {
-                                id: 'c-s1-b',
-                                name: 'Bangalore East',
-                                cl: { id: 'cl-nr', name: 'Neha Reddy' },
-                                tasks: { total: 40, completed: 32, pending: 6, overdue: 2 },
-                                monthly: { assigned: [5, 6, 4, 7, 5, 8, 6, 9, 7, 10, 8, 11], completed: [4, 5, 3, 6, 4, 7, 5, 8, 6, 9, 7, 10], overdue: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] }
-                            }
-                        ]
-                    }
-                ],
-                rcls: [
-                    {
-                        id: 'rcl-b1',
-                        name: 'Sanjay Menon',
-                        bhs: ['bh-s1']
-                    }
-                ]
-            },
-            {
-                id: 'west',
-                name: 'West Region',
-                bhs: [
-                    {
-                        id: 'bh-w1',
-                        name: 'Pankaj Joshi',
-                        centers: [
-                            {
-                                id: 'c-w1-a',
-                                name: 'Mumbai Central',
-                                cl: { id: 'cl-dp', name: 'Deepa Patil' },
-                                tasks: { total: 50, completed: 42, pending: 5, overdue: 3 },
-                                monthly: { assigned: [6, 8, 5, 9, 7, 10, 8, 11, 9, 12, 10, 13], completed: [5, 7, 4, 8, 6, 9, 7, 10, 8, 11, 9, 12], overdue: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] }
-                            },
-                            {
-                                id: 'c-w1-b',
-                                name: 'Mumbai West',
-                                cl: { id: 'cl-vs', name: 'Vikram Singh' },
-                                tasks: { total: 33, completed: 25, pending: 5, overdue: 3 },
-                                monthly: { assigned: [4, 5, 3, 6, 4, 7, 5, 8, 6, 9, 7, 9], completed: [3, 4, 2, 5, 3, 6, 4, 7, 5, 8, 6, 8], overdue: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] }
-                            }
-                        ]
-                    },
-                    {
-                        id: 'bh-w2',
-                        name: 'Ravi Deshmukh',
-                        centers: [
-                            {
-                                id: 'c-w2-a',
-                                name: 'Pune South',
-                                cl: { id: 'cl-sg', name: 'Suresh Gaikwad' },
-                                tasks: { total: 30, completed: 22, pending: 5, overdue: 3 },
-                                monthly: { assigned: [3, 4, 3, 5, 4, 6, 4, 7, 5, 8, 6, 8], completed: [2, 3, 2, 4, 3, 5, 3, 6, 4, 7, 5, 7], overdue: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] }
-                            },
-                            {
-                                id: 'c-w2-b',
-                                name: 'Pune North',
-                                cl: { id: 'cl-ak2', name: 'Alok Kulkarni' },
-                                tasks: { total: 28, completed: 20, pending: 5, overdue: 3 },
-                                monthly: { assigned: [3, 4, 3, 5, 4, 6, 4, 7, 5, 8, 6, 8], completed: [2, 3, 2, 4, 3, 5, 3, 6, 4, 7, 5, 7], overdue: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] }
-                            }
-                        ]
-                    }
-                ],
-                rcls: [
-                    {
-                        id: 'rcl-c1',
-                        name: 'Kiran Bhatt',
-                        bhs: ['bh-w1', 'bh-w2']
-                    }
-                ]
+    let sheetRows = [];
+    let orgData = { regions: [] };
+
+    try {
+        showToast('Loading data from sheet...', 'info');
+        sheetRows = await fetchSheetData();
+        orgData = buildOrgDataFromSheet(sheetRows);
+        showToast('Data loaded successfully!', 'success');
+    } catch (error) {
+        console.error('Failed to fetch sheet data:', error);
+        showToast('Failed to load sheet data. Using cached data.', 'error');
+        // Try to load from localStorage
+        const cached = localStorage.getItem('cadence-org-data');
+        if (cached) {
+            orgData = JSON.parse(cached);
+        }
+    }
+
+    // Build org data from sheet rows
+    function buildOrgDataFromSheet(rows) {
+        const regions = {};
+        const allUsers = {};
+        // Track which BHs/RCLs each hierarchy user manages
+        const rbhManagedBHs = {};   // rbhEmail -> Set of bhEmail
+        const rbhManagedRCLs = {};  // rbhEmail -> Set of rclEmail
+        const rclManagedBHs = {};   // rclEmail -> Set of bhEmail
+
+        // First pass: collect all users and their hierarchy
+        rows.forEach(row => {
+            const email = row.mail_id ? row.mail_id.toLowerCase().trim() : '';
+            const rbhEmail = row.RBH ? row.RBH.toLowerCase().trim() : '';
+            const rclEmail = row.RCL ? row.RCL.toLowerCase().trim() : '';
+            const bhEmail = row.BH ? row.BH.toLowerCase().trim() : '';
+            const region = row.Region || 'Unknown';
+            const center = row.Center || '';
+
+            // Track RBH → BH mapping
+            if (rbhEmail && rbhEmail !== '-' && bhEmail && bhEmail !== '-') {
+                if (!rbhManagedBHs[rbhEmail]) rbhManagedBHs[rbhEmail] = new Set();
+                rbhManagedBHs[rbhEmail].add(bhEmail);
             }
-        ]
-    };
+            // Track RBH → RCL mapping
+            if (rbhEmail && rbhEmail !== '-' && rclEmail && rclEmail !== '-') {
+                if (!rbhManagedRCLs[rbhEmail]) rbhManagedRCLs[rbhEmail] = new Set();
+                rbhManagedRCLs[rbhEmail].add(rclEmail);
+            }
+            // Track RCL → BH mapping
+            if (rclEmail && rclEmail !== '-' && bhEmail && bhEmail !== '-') {
+                if (!rclManagedBHs[rclEmail]) rclManagedBHs[rclEmail] = new Set();
+                rclManagedBHs[rclEmail].add(bhEmail);
+            }
+
+            // Store user
+            if (email) {
+                allUsers[email] = {
+                    email: email,
+                    name: email.split('@')[0].replace(/[._]/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+                    role: row.employee_type === 'CM' ? 'cl' : (row.employee_type || 'CL').toLowerCase(),
+                    region: region,
+                    center: center,
+                    rcl: rclEmail,
+                    bh: bhEmail,
+                    rbh: rbhEmail
+                };
+            }
+
+            // Store RBH
+            if (rbhEmail && rbhEmail !== '-' && !allUsers[rbhEmail]) {
+                allUsers[rbhEmail] = {
+                    email: rbhEmail,
+                    name: rbhEmail.split('@')[0].replace(/[._]/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+                    role: 'rbh',
+                    region: region,
+                    managedBHs: [],   // will be filled after first pass
+                    managedRCLs: []
+                };
+            }
+
+            // Store RCL
+            if (rclEmail && rclEmail !== '-' && !allUsers[rclEmail]) {
+                allUsers[rclEmail] = {
+                    email: rclEmail,
+                    name: rclEmail.split('@')[0].replace(/[._]/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+                    role: 'rcl',
+                    region: region,
+                    managedBHs: []
+                };
+            }
+
+            // Store BH
+            if (bhEmail && bhEmail !== '-' && !allUsers[bhEmail]) {
+                allUsers[bhEmail] = {
+                    email: bhEmail,
+                    name: bhEmail.split('@')[0].replace(/[._]/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+                    role: 'bh',
+                    region: region
+                };
+            }
+
+            // Build region structure
+            if (!regions[region]) {
+                regions[region] = {
+                    id: region.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+                    name: region,
+                    rcls: {},
+                    bhs: {},
+                    centers: []
+                };
+            }
+
+            const regionData = regions[region];
+
+            // Add RCL
+            if (rclEmail && rclEmail !== '-' && !regionData.rcls[rclEmail]) {
+                regionData.rcls[rclEmail] = {
+                    id: rclEmail,
+                    name: allUsers[rclEmail]?.name || rclEmail,
+                    bhs: []
+                };
+            }
+
+            // Add BH
+            if (bhEmail && bhEmail !== '-' && !regionData.bhs[bhEmail]) {
+                regionData.bhs[bhEmail] = {
+                    id: bhEmail,
+                    name: allUsers[bhEmail]?.name || bhEmail,
+                    rcl: rclEmail,
+                    centers: []
+                };
+                // Link BH to RCL
+                if (rclEmail && rclEmail !== '-' && regionData.rcls[rclEmail]) {
+                    regionData.rcls[rclEmail].bhs.push(bhEmail);
+                }
+            }
+
+            // Add center — must go under BOTH the region AND the parent BH
+            if (center && center !== '-') {
+                const centerObj = {
+                    id: email || center,
+                    name: center,
+                    cl: email,
+                    bh: bhEmail,
+                    rcl: rclEmail,
+                    tasks: { total: 0, completed: 0, pending: 0, overdue: 0 },
+                    monthly: {
+                        assigned: new Array(12).fill(0),
+                        completed: new Array(12).fill(0),
+                        overdue: new Array(12).fill(0)
+                    }
+                };
+
+                // Push to region's flat list (for reference)
+                regionData.centers.push(centerObj);
+
+                // ALSO push to the parent BH's centers array (this is what getAllCenters iterates)
+                if (bhEmail && bhEmail !== '-' && regionData.bhs[bhEmail]) {
+                    regionData.bhs[bhEmail].centers.push(centerObj);
+                }
+            }
+        });
+
+        // ---- Fill managedBHs / managedRCLs for hierarchy users ----
+        Object.keys(rbhManagedBHs).forEach(rbhEmail => {
+            if (allUsers[rbhEmail]) {
+                allUsers[rbhEmail].managedBHs = [...rbhManagedBHs[rbhEmail]];
+            }
+        });
+        Object.keys(rbhManagedRCLs).forEach(rbhEmail => {
+            if (allUsers[rbhEmail]) {
+                allUsers[rbhEmail].managedRCLs = [...rbhManagedRCLs[rbhEmail]];
+            }
+        });
+        Object.keys(rclManagedBHs).forEach(rclEmail => {
+            if (allUsers[rclEmail]) {
+                allUsers[rclEmail].managedBHs = [...rclManagedBHs[rclEmail]];
+            }
+        });
+
+        // Convert to array format
+        const regionsArray = Object.values(regions).map(region => ({
+            ...region,
+            rcls: Object.values(region.rcls),
+            bhs: Object.values(region.bhs)
+        }));
+
+        return { regions: regionsArray, users: allUsers };
+    }
 
     // =============================================
     // 2. ROLE DEFINITIONS & HIERARCHY
@@ -178,17 +224,14 @@ function initDashboard() {
         cl:    { level: 1, label: 'CL',    icon: 'fas fa-user-tie',     canSee: 'own_center_only' }
     };
 
-    // Users mapped to roles
-    const USERS = {
-        admin: { name: 'Administrator',   role: 'admin' },
-        rbh:   { name: 'Rajesh Kumar',    role: 'rbh',   regionId: 'north', rbhId: 'bh-n1' },
-        rcl:   { name: 'Amit Verma',      role: 'rcl',   regionId: 'north', rclId: 'rcl-a1' },
-        bh:    { name: 'Manoj Singh',     role: 'bh',    regionId: 'south', bhId: 'bh-s1' },
-        cl:    { name: 'Vikram Thapa',    role: 'cl',    regionId: 'north', bhId: 'bh-n1', centerId: 'c-n1-a' }
-    };
-
     let currentRole = session.role || 'admin';
     let cadenceChart = null;
+
+    // Helper: convert raw region name to slugified region ID
+    function regionNameToId(name) {
+        if (!name) return '';
+        return name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    }
 
     // =============================================
     // 3. HELPER: FLATTEN & FILTER DATA
@@ -222,7 +265,7 @@ function initDashboard() {
     function getVisibleData(filters = {}) {
         const { region, bh, rcl, center, cl } = filters;
         const role = ROLES[currentRole];
-        const user = USERS[currentRole];
+        const user = session;
 
         // Role-based restrictions
         let allowedRegions = null;
@@ -232,19 +275,32 @@ function initDashboard() {
 
         if (role.level <= 1) {
             // CL: own center only
-            allowedCenters = [user.centerId];
+            allowedCenters = [user.center];
         } else if (role.level <= 2) {
             // BH: own centers only
-            const bhData = findBH(user.bhId);
-            allowedBHs = [user.bhId];
+            const bhData = findBH(user.bh);
+            allowedBHs = [user.bh];
             allowedCenters = bhData ? bhData.centers.map(c => c.id) : [];
         } else if (role.level <= 3) {
-            // RCL: BHs managed by this RCL
-            const rclData = findRCL(user.rclId);
-            allowedBHs = rclData ? rclData.bhs : [];
+            // RCL: only BHs this RCL manages
+            const rclUserData = orgData.users[user.email];
+            const rclData = findRCL(user.rcl || user.email);
+            if (rclUserData && rclUserData.managedBHs && rclUserData.managedBHs.length > 0) {
+                allowedBHs = rclUserData.managedBHs;
+            } else if (rclData) {
+                allowedBHs = rclData.bhs;
+            }
         } else if (role.level <= 4) {
-            // RBH: all BH + RCL under this RBH's region
-            allowedRegions = [user.regionId];
+            // RBH: only BHs + RCLs this RBH manages
+            const rbhUserData = orgData.users[user.email];
+            if (rbhUserData && rbhUserData.managedBHs && rbhUserData.managedBHs.length > 0) {
+                allowedBHs = rbhUserData.managedBHs;
+            }
+            if (rbhUserData && rbhUserData.managedRCLs && rbhUserData.managedRCLs.length > 0) {
+                allowedRCLs = rbhUserData.managedRCLs;
+            }
+            // Use slugified region ID to match region.id
+            allowedRegions = [regionNameToId(user.region)];
         }
         // level 5 (admin): no restrictions
 
@@ -275,7 +331,7 @@ function initDashboard() {
 
         // CL filter
         if (cl) {
-            centers = centers.filter(c => c.cl.id === cl);
+            centers = centers.filter(c => c.cl === cl);
         }
 
         return centers;
@@ -321,6 +377,41 @@ function initDashboard() {
     // =============================================
     // 4. POPULATE FILTER DROPDOWNS
     // =============================================
+
+    // Helper: get allowed BHs for current role user
+    function getAllowedBHs() {
+        const user = session;
+        const role = ROLES[currentRole];
+        if (role.level <= 2) return [user.bh]; // BH: own BH only
+        if (role.level <= 3) {
+            // RCL: managed BHs
+            const u = orgData.users[user.email];
+            return (u && u.managedBHs) ? u.managedBHs : [];
+        }
+        if (role.level <= 4) {
+            // RBH: managed BHs
+            const u = orgData.users[user.email];
+            return (u && u.managedBHs) ? u.managedBHs : [];
+        }
+        return null; // admin: no restriction
+    }
+
+    // Helper: get allowed RCLs for current role user
+    function getAllowedRCLs() {
+        const user = session;
+        const role = ROLES[currentRole];
+        if (role.level <= 3) {
+            // RCL: only self
+            return [user.rcl || user.email];
+        }
+        if (role.level <= 4) {
+            // RBH: managed RCLs
+            const u = orgData.users[user.email];
+            return (u && u.managedRCLs) ? u.managedRCLs : [];
+        }
+        return null; // admin: no restriction
+    }
+
     function populateRegionFilter() {
         const sel = document.getElementById('filterRegion');
         sel.innerHTML = '<option value="">All Regions</option>';
@@ -332,9 +423,12 @@ function initDashboard() {
     function populateBHFilter(regionId) {
         const sel = document.getElementById('filterBH');
         sel.innerHTML = '<option value="">All BH</option>';
+        const allowedBHs = getAllowedBHs();
         orgData.regions.forEach(r => {
             if (regionId && r.id !== regionId) return;
             r.bhs.forEach(bh => {
+                // Role restriction: only show allowed BHs
+                if (allowedBHs && !allowedBHs.includes(bh.id)) return;
                 sel.innerHTML += `<option value="${bh.id}">${bh.name} (${r.name})</option>`;
             });
         });
@@ -343,9 +437,12 @@ function initDashboard() {
     function populateRCLFilter(regionId, bhId) {
         const sel = document.getElementById('filterRCL');
         sel.innerHTML = '<option value="">All RCL</option>';
+        const allowedRCLs = getAllowedRCLs();
         orgData.regions.forEach(r => {
             if (regionId && r.id !== regionId) return;
             r.rcls.forEach(rcl => {
+                // Role restriction: only show allowed RCLs
+                if (allowedRCLs && !allowedRCLs.includes(rcl.id)) return;
                 // If BH is selected, only show RCLs that manage that BH
                 if (bhId && !rcl.bhs.includes(bhId)) return;
                 sel.innerHTML += `<option value="${rcl.id}">${rcl.name} (${r.name})</option>`;
@@ -356,6 +453,14 @@ function initDashboard() {
     function populateCenterFilter(regionId, bhId, rclId) {
         const sel = document.getElementById('filterCenter');
         sel.innerHTML = '<option value="">All Centers</option>';
+        const role = ROLES[currentRole];
+        const user = session;
+        // CL: only own center
+        if (role.level <= 1) {
+            const c = findCenterById(user.center);
+            sel.innerHTML += `<option value="${user.center}">${c ? c.name : user.center}</option>`;
+            return;
+        }
         orgData.regions.forEach(r => {
             if (regionId && r.id !== regionId) return;
             r.bhs.forEach(bh => {
@@ -375,6 +480,13 @@ function initDashboard() {
     function populateCLFilter(regionId, bhId, rclId, centerId) {
         const sel = document.getElementById('filterCL');
         sel.innerHTML = '<option value="">All CL</option>';
+        const role = ROLES[currentRole];
+        const user = session;
+        // CL: only self
+        if (role.level <= 1) {
+            sel.innerHTML += `<option value="${user.email}">${user.name}</option>`;
+            return;
+        }
         orgData.regions.forEach(r => {
             if (regionId && r.id !== regionId) return;
             r.bhs.forEach(bh => {
@@ -385,32 +497,89 @@ function initDashboard() {
                 }
                 bh.centers.forEach(c => {
                     if (centerId && c.id !== centerId) return;
-                    sel.innerHTML += `<option value="${c.cl.id}">${c.cl.name} (${c.name})</option>`;
+                    const clUser = orgData.users[c.cl];
+                    sel.innerHTML += `<option value="${c.cl}">${clUser?.name || c.cl} (${c.name})</option>`;
                 });
             });
         });
     }
 
+    // Helper: find center by id across all regions
+    function findCenterById(centerId) {
+        for (const region of orgData.regions) {
+            for (const bh of region.bhs) {
+                for (const c of bh.centers) {
+                    if (c.id === centerId) return c;
+                }
+            }
+        }
+        return null;
+    }
+
     // =============================================
     // 5. CASCADE: When upper filter changes, update lower filters
     // =============================================
-    function onFilterChange() {
+    function onFilterChange(changedFilter) {
         const region = document.getElementById('filterRegion').value;
+
+        // Populate BH if region changed or full rebuild
+        if (changedFilter === 'region' || !changedFilter) {
+            populateBHFilter(region);
+            autoSelectOrShow('filterBH', 'filterBHGroup');
+        }
+
         const bh = document.getElementById('filterBH').value;
+
+        // Populate RCL if BH or region changed, or full rebuild
+        if (changedFilter === 'region' || changedFilter === 'bh' || !changedFilter) {
+            populateRCLFilter(region, bh);
+            autoSelectOrShow('filterRCL', 'filterRCLGroup');
+        }
+
         const rcl = document.getElementById('filterRCL').value;
+
+        // Populate Center if any parent changed, or full rebuild
+        if (changedFilter === 'region' || changedFilter === 'bh' || changedFilter === 'rcl' || !changedFilter) {
+            populateCenterFilter(region, bh, rcl);
+            autoSelectOrShow('filterCenter', 'filterCenterGroup');
+        }
+
         const center = document.getElementById('filterCenter').value;
 
-        populateBHFilter(region);
-        populateRCLFilter(region, bh);
-        populateCenterFilter(region, bh, rcl);
-        populateCLFilter(region, bh, rcl, center);
+        // Populate CL if any parent changed, or full rebuild
+        if (changedFilter === 'region' || changedFilter === 'bh' || changedFilter === 'rcl' || changedFilter === 'center' || !changedFilter) {
+            populateCLFilter(region, bh, rcl, center);
+            autoSelectOrShow('filterCL', 'filterCLGroup');
+        }
+
+        // Auto-update dashboard on every filter change
+        updateDashboard();
+    }
+
+    /**
+     * Auto-select if only 1 real option, hide group.
+     * If multiple options, show group so user can choose.
+     */
+    function autoSelectOrShow(selId, groupId) {
+        const selectEl = document.getElementById(selId);
+        const groupEl = document.getElementById(groupId);
+        if (!selectEl || !groupEl) return;
+
+        const realOptions = Array.from(selectEl.options).filter(o => o.value !== '');
+
+        if (realOptions.length === 1) {
+            selectEl.value = realOptions[0].value;
+            groupEl.style.display = 'none';
+        } else {
+            groupEl.style.display = '';
+        }
     }
 
     // =============================================
     // 6. ROLE-BASED FILTER LOCKING
     // =============================================
     function applyRoleRestrictions() {
-        const user = USERS[currentRole];
+        const user = session;
         const role = ROLES[currentRole];
 
         const regionSel = document.getElementById('filterRegion');
@@ -425,49 +594,47 @@ function initDashboard() {
         });
 
         // Update sidebar user info
-        document.getElementById('sidebarUserName').textContent = user.name;
-        document.getElementById('sidebarUserRole').textContent = role.label;
-        document.getElementById('sidebarAvatar').innerHTML = `<i class="${role.icon}"></i>`;
+        const sidebarUserName = document.getElementById('sidebarUserName');
+        const sidebarUserRole = document.getElementById('sidebarUserRole');
+        const sidebarAvatar = document.getElementById('sidebarAvatar');
+        if (sidebarUserName) sidebarUserName.textContent = user.name;
+        if (sidebarUserRole) sidebarUserRole.textContent = role.label;
+        if (sidebarAvatar) sidebarAvatar.innerHTML = `<i class="${role.icon}"></i>`;
 
-        // Update role badge (this replaces innerHTML so do it last)
-        const roleBadgeEl = document.getElementById('currentRoleBadge');
-        roleBadgeEl.innerHTML = `<i class="${role.icon}"></i><span id="currentRoleText">${role.label} - ${user.name}</span>`;
+        // Convert raw region name to slugified ID for dropdown matching
+        const userRegionId = regionNameToId(user.region);
 
-        // Access indicator
-        const indicator = document.getElementById('accessIndicator');
-        if (role.level === 5) {
-            indicator.innerHTML = '<i class="fas fa-lock-open"></i> Full Access';
-            indicator.className = 'access-indicator';
-        } else {
-            indicator.innerHTML = `<i class="fas fa-lock"></i> ${role.canSee.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}`;
-            indicator.className = 'access-indicator limited';
-        }
+        // ---- ROLE-SPECIFIC FILTER LOCKING & AUTO-SELECT ----
 
         if (role.level <= 1) {
             // CL: lock everything, auto-select their center
-            regionSel.value = user.regionId;
+            regionSel.value = userRegionId;
             regionSel.disabled = true;
-            bhSel.value = user.bhId;
+            bhSel.value = user.bh;
             bhSel.disabled = true;
-            centerSel.value = user.centerId;
+            centerSel.value = user.center;
             centerSel.disabled = true;
-            clSel.value = user.cl?.id || '';
+            clSel.value = user.email;
             clSel.disabled = true;
             rclSel.disabled = true;
+
         } else if (role.level <= 2) {
-            // BH: lock region, auto-select their BH
-            regionSel.value = user.regionId;
+            // BH: lock region + BH, auto-select
+            regionSel.value = userRegionId;
             regionSel.disabled = true;
-            bhSel.value = user.bhId;
+            bhSel.value = user.bh;
             bhSel.disabled = true;
+
         } else if (role.level <= 3) {
-            // RCL: lock region
-            regionSel.value = user.regionId;
+            // RCL: lock region, auto-select; BH/Center cascaded
+            regionSel.value = userRegionId;
             regionSel.disabled = true;
+
         } else if (role.level <= 4) {
-            // RBH: lock region
-            regionSel.value = user.regionId;
+            // RBH: lock region, auto-select; BH/RCL/Center cascaded
+            regionSel.value = userRegionId;
             regionSel.disabled = true;
+
         } else {
             // Admin: reset all filters to default
             regionSel.value = '';
@@ -477,8 +644,20 @@ function initDashboard() {
             clSel.value = '';
         }
 
-        // Repopulate with restrictions
+        // ---- CASCADE: repopulate lower dropdowns ----
         onFilterChange();
+
+        // Debug: show current role restrictions
+        const currentAllowedBHs = getAllowedBHs();
+        const currentAllowedRCLs = getAllowedRCLs();
+        console.log(`[CADENCE] Role: ${role.label} | User: ${user.email} | Region: ${user.region} → ${userRegionId} | Allowed BHs: ${JSON.stringify(currentAllowedBHs || 'all')} | Allowed RCLs: ${JSON.stringify(currentAllowedRCLs || 'all')}`);
+
+        // ---- AUTO-SELECT single BH for BH role ----
+        if (role.level <= 2 && user.bh) {
+            bhSel.value = user.bh;
+            // Cascade down (don't rebuild BH, just the lower filters)
+            onFilterChange('bh');
+        }
     }
 
     // =============================================
@@ -540,18 +719,24 @@ function initDashboard() {
         // Gather unique CLs from visible centers
         const clMap = {};
         centers.forEach(c => {
-            if (!clMap[c.cl.id]) {
-                clMap[c.cl.id] = { name: c.cl.name, center: c.name, tasks: c.tasks };
-            } else {
-                clMap[c.cl.id].tasks.total += c.tasks.total;
-                clMap[c.cl.id].tasks.completed += c.tasks.completed;
+            const clEmail = c.cl;
+            if (clEmail && !clMap[clEmail]) {
+                const clUser = orgData.users[clEmail];
+                clMap[clEmail] = { 
+                    name: clUser?.name || clEmail, 
+                    center: c.name, 
+                    tasks: c.tasks 
+                };
+            } else if (clEmail && clMap[clEmail]) {
+                clMap[clEmail].tasks.total += c.tasks.total;
+                clMap[clEmail].tasks.completed += c.tasks.completed;
             }
         });
 
         let html = '';
         Object.values(clMap).forEach(person => {
             const pct = person.tasks.total > 0 ? Math.round((person.tasks.completed / person.tasks.total) * 100) : 0;
-            const initials = person.name.split(' ').map(n => n[0]).join('');
+            const initials = person.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
             html += `
                 <div class="team-member">
                     <div class="member-info">
@@ -624,8 +809,7 @@ function initDashboard() {
             icon.addEventListener('click', () => {
                 const selId = icon.getAttribute('data-clear');
                 document.getElementById(selId).value = '';
-                onFilterChange();
-                updateDashboard();
+                onFilterChange();  // no arg = rebuild all
             });
         });
     }
@@ -780,28 +964,11 @@ function initDashboard() {
     // 11. EVENT LISTENERS
     // =============================================
 
-    // Role switcher
-    document.getElementById('roleSelect').addEventListener('change', (e) => {
-        switchRole(e.target.value);
-    });
-
-    function switchRole(roleKey) {
-        currentRole = roleKey;
-        applyRoleRestrictions();
-        updateDashboard();
-        showToast(`Switched to ${ROLES[currentRole].label}: ${USERS[currentRole].name}`, 'info');
-    }
-
-    // Filter cascade: when upper filter changes
-    ['filterRegion', 'filterBH', 'filterRCL', 'filterCenter'].forEach(id => {
-        document.getElementById(id).addEventListener('change', onFilterChange);
-    });
-
-    // Apply Filters button
-    document.getElementById('applyFiltersBtn').addEventListener('click', () => {
-        updateDashboard();
-        showToast('Filters applied successfully!', 'success');
-    });
+    // Filter cascade: when upper filter changes, pass which one changed
+    document.getElementById('filterRegion').addEventListener('change', () => onFilterChange('region'));
+    document.getElementById('filterBH').addEventListener('change', () => onFilterChange('bh'));
+    document.getElementById('filterRCL').addEventListener('change', () => onFilterChange('rcl'));
+    document.getElementById('filterCenter').addEventListener('change', () => onFilterChange('center'));
 
     // Reset Filters
     document.getElementById('filterResetBtn').addEventListener('click', () => {
@@ -821,8 +988,7 @@ function initDashboard() {
         if (!rclSel.disabled) rclSel.value = '';
         if (!centerSel.disabled) centerSel.value = '';
         if (!clSel.disabled) clSel.value = '';
-        onFilterChange();
-        updateDashboard();
+        onFilterChange();  // no arg = rebuild all
         showToast('Filters reset!', 'info');
     });
 
@@ -904,13 +1070,23 @@ function initDashboard() {
     document.getElementById('refreshBtn')?.addEventListener('click', function () {
         this.querySelector('i').classList.add('loading');
         showToast('Refreshing...', 'info');
-        setTimeout(() => { this.querySelector('i').classList.remove('loading'); updateDashboard(); showToast('Dashboard updated!', 'success'); }, 1200);
+        setTimeout(() => { 
+            this.querySelector('i').classList.remove('loading'); 
+            // Re-fetch sheet data on refresh
+            initDashboard();
+        }, 1200);
     });
 
     // Quick actions
     const qaMsgs = { newReportBtn: 'Opening Report Builder...', exportBtn: 'Generating PDF...', shareBtn: 'Link copied!', scheduleBtn: 'Opening scheduler...', settingsBtn: 'Opening settings...' };
     Object.entries(qaMsgs).forEach(([id, msg]) => {
-        document.getElementById(id)?.addEventListener('click', () => showToast(msg, 'info'));
+        document.getElementById(id)?.addEventListener('click', () => {
+            if (id === 'settingsBtn') {
+                window.location.href = 'settings.html';
+            } else {
+                showToast(msg, 'info');
+            }
+        });
     });
 
     // Search
@@ -974,9 +1150,6 @@ function initDashboard() {
         }, 100);
     }
 
-    // Expose switchRole globally for testing
-    window.switchRole = switchRole;
-
     // ========== LOGOUT ==========
     document.getElementById('logoutBtn')?.addEventListener('click', () => {
         if (confirm('Are you sure you want to sign out?')) {
@@ -984,6 +1157,101 @@ function initDashboard() {
             window.location.href = 'login.html';
         }
     });
+
+    // ========== FORCED PASSWORD CHANGE (DEFAULT PASSWORD) ==========
+    if (session.isDefaultPassword) {
+        setTimeout(() => showForcePasswordModal(), 1500);
+    }
+
+    function showForcePasswordModal() {
+        const modal = document.getElementById('forcePasswordModal');
+        if (!modal) return;
+        modal.style.display = 'flex';
+
+        // Strength checker
+        document.getElementById('forceNewPassword')?.addEventListener('input', () => {
+            const val = document.getElementById('forceNewPassword').value;
+            let score = 0;
+            if (val.length >= 8) score++;
+            if (/[A-Z]/.test(val)) score++;
+            if (/[a-z]/.test(val)) score++;
+            if (/[0-9]/.test(val)) score++;
+            if (/[^A-Za-z0-9]/.test(val)) score++;
+            const levels = [
+                { width: '0%', color: 'transparent', label: '' },
+                { width: '20%', color: '#ef4444', label: 'Weak' },
+                { width: '40%', color: '#f97316', label: 'Fair' },
+                { width: '60%', color: '#eab308', label: 'Good' },
+                { width: '80%', color: '#22c55e', label: 'Strong' },
+                { width: '100%', color: '#22c55e', label: 'Very Strong' }
+            ];
+            const level = levels[score] || levels[0];
+            document.getElementById('forceStrengthFill').style.width = level.width;
+            document.getElementById('forceStrengthFill').style.background = level.color;
+            document.getElementById('forceStrengthText').textContent = level.label;
+            document.getElementById('forceStrengthText').style.color = level.color;
+        });
+
+        // Confirm match
+        document.getElementById('forceConfirmPassword')?.addEventListener('input', () => {
+            const val = document.getElementById('forceConfirmPassword').value;
+            const newPw = document.getElementById('forceNewPassword').value;
+            const status = document.getElementById('forceConfirmStatus');
+            if (!val) { status.className = 'input-status'; status.innerHTML = ''; return; }
+            if (val === newPw) {
+                status.className = 'input-status valid';
+                status.innerHTML = '<i class="fas fa-check-circle" style="color: #22c55e;"></i>';
+            } else {
+                status.className = 'input-status invalid';
+                status.innerHTML = '<i class="fas fa-times-circle" style="color: #ef4444;"></i>';
+            }
+        });
+
+        // Change password button
+        document.getElementById('forceChangeBtn')?.addEventListener('click', async () => {
+            const newPw = document.getElementById('forceNewPassword').value;
+            const confirmPw = document.getElementById('forceConfirmPassword').value;
+            const error = document.getElementById('forceError');
+            const btn = document.getElementById('forceChangeBtn');
+
+            error.textContent = '';
+            if (newPw.length < 8) { error.textContent = 'Password must be at least 8 characters'; return; }
+            if (newPw === 'Acer@1234') { error.textContent = 'Please choose a different password from the default'; return; }
+            if (newPw !== confirmPw) { error.textContent = 'Passwords do not match'; return; }
+
+            btn.querySelector('.btn-text').style.display = 'none';
+            btn.querySelector('.btn-loader').style.display = 'inline';
+            btn.disabled = true;
+
+            try {
+                const result = await changeUserPassword(session.email, newPw);
+                if (!result.success) {
+                    error.textContent = result.error;
+                    btn.querySelector('.btn-text').style.display = '';
+                    btn.querySelector('.btn-loader').style.display = 'none';
+                    btn.disabled = false;
+                    return;
+                }
+
+                session.isDefaultPassword = false;
+                localStorage.setItem('cadence-session', JSON.stringify(session));
+                modal.style.display = 'none';
+                showToast('Password updated successfully! Welcome to CADENCE.', 'success');
+            } catch (err) {
+                error.textContent = 'Failed to update password';
+            }
+
+            btn.querySelector('.btn-text').style.display = '';
+            btn.querySelector('.btn-loader').style.display = 'none';
+            btn.disabled = false;
+        });
+
+        // Skip button
+        document.getElementById('forceSkipBtn')?.addEventListener('click', () => {
+            modal.style.display = 'none';
+            showToast('Remember to change your password from Settings.', 'info');
+        });
+    }
 
     console.log('%c CADENCE Report Dashboard Loaded ', 'background: linear-gradient(135deg, #3b82f6, #a855f7); color: white; padding: 8px 16px; border-radius: 6px; font-weight: bold; font-size: 14px;');
 
