@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - CADENCE</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="login.css">
+    <link rel="stylesheet" href="settings.css">
+</head>
+<body>
+    <!-- Background -->
+    <div class="bg-gradient"></div>
+    <div class="bg-orbs">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Top Navigation -->
+    <header class="topbar">
+        <div class="topbar-left">
+            <a href="index.html" class="back-btn" title="Back to Dashboard">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <div class="logo">
+                <i class="fas fa-bolt"></i>
+                <span class="logo-text">CADENCE</span>
+                <span class="logo-divider">|</span>
+                <span class="logo-subtitle">Settings</span>
+            </div>
+        </div>
+        <div class="topbar-right">
+            <div class="user-info">
+                <span class="user-name" id="userName">User</span>
+                <div class="avatar" id="userAvatar">
+                    <i class="fas fa-user"></i>
+                </div>
+            </div>
+            <button class="theme-btn" id="themeToggle" title="Cycle Theme">
+                <i class="fas fa-moon" id="themeIcon"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Settings Layout -->
+    <div class="settings-layout">
+        <!-- Sidebar Navigation -->
+        <aside class="settings-sidebar">
+            <nav class="settings-nav">
+                <button class="nav-item active" data-section="appearance">
+                    <i class="fas fa-palette"></i>
+                    <span>Appearance</span>
+                </button>
+                <button class="nav-item" data-section="profile">
+                    <i class="fas fa-user-circle"></i>
+                    <span>Profile</span>
+                </button>
+                <button class="nav-item" data-section="notifications">
+                    <i class="fas fa-bell"></i>
+                    <span>Notifications</span>
+                </button>
+                <button class="nav-item" data-section="security">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>Security</span>
+                </button>
+                <button class="nav-item" data-section="language">
+                    <i class="fas fa-globe"></i>
+                    <span>Language & Region</span>
+                </button>
+                <button class="nav-item" data-section="data">
+                    <i class="fas fa-database"></i>
+                    <span>Data & Export</span>
+                </button>
+                <div class="nav-divider"></div>
+                <button class="nav-item danger" id="logoutBtn">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Sign Out</span>
+                </button>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="settings-main">
+
+            <!-- ====== APPEARANCE SECTION ====== -->
+            <section class="settings-section active" id="section-appearance">
+                <div class="section-header">
+                    <h2><i class="fas fa-palette"></i> Appearance</h2>
+                    <p>Customize the look and feel of your dashboard</p>
+                </div>
+
+                <div class="setting-group">
+                    <label class="setting-label">Theme</label>
+                    <p class="setting-desc">Choose a color theme for the entire application</p>
+                    <div class="theme-grid">
+                        <button class="theme-card active" data-theme="dark">
+                            <div class="theme-preview dark-preview">
+                                <div class="tp-bar"></div>
+                                <div class="tp-sidebar"></div>
+                                <div class="tp-card"></div>
+                            </div>
+                            <span class="theme-name">Dark</span>
+                            <span class="theme-check"><i class="fas fa-check-circle"></i></span>
+                        </button>
+                        <button class="theme-card" data-theme="light">
+                            <div class="theme-preview light-preview">
+                                <div class="tp-bar"></div>
+                                <div class="tp-sidebar"></div>
+                                <div class="tp-card"></div>
+                            </div>
+                            <span class="theme-name">Light</span>
+                            <span class="theme-check"><i class="fas fa-check-circle"></i></span>
+                        </button>
+                        <button class="theme-card" data-theme="blue">
+                            <div class="theme-preview blue-preview">
+                                <div class="tp-bar"></div>
+                                <div class="tp-sidebar"></div>
+                                <div class="tp-card"></div>
+                            </div>
+                            <span class="theme-name">Blue</span>
+                            <span class="theme-check"><i class="fas fa-check-circle"></i></span>
+                        </button>
+                        <button class="theme-card" data-theme="green">
+                            <div class="theme-preview green-preview">
+                                <div class="tp-bar"></div>
+                                <div class="tp-sidebar"></div>
+                                <div class="tp-card"></div>
+                            </div>
+                            <span class="theme-name">Green</span>
+                            <span class="theme-check"><i class="fas fa-check-circle"></i></span>
+                        </button>
+                        <button class="theme-card" data-theme="purple">
+                            <div class="theme-preview purple-preview">
+                                <div class="tp-bar"></div>
+                                <div class="tp-sidebar"></div>
+                                <div class="tp-card"></div>
+                            </div>
+                            <span class="theme-name">Purple</span>
+                            <span class="theme-check"><i class="fas fa-check-circle"></i></span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <label class="setting-label">Sidebar</label>
+                    <p class="setting-desc">Control sidebar behavior on the dashboard</p>
+                    <div class="toggle-row">
+                        <div>
+                            <span class="toggle-title">Collapsed by default</span>
+                            <span class="toggle-desc">Start with sidebar collapsed on page load</span>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="sidebarCollapsed">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <label class="setting-label">Animations</label>
+                    <p class="setting-desc">Control motion and transition effects</p>
+                    <div class="toggle-row">
+                        <div>
+                            <span class="toggle-title">Enable animations</span>
+                            <span class="toggle-desc">Smooth transitions, counters, and hover effects</span>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="animationsEnabled" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ====== PROFILE SECTION ====== -->
+            <section class="settings-section" id="section-profile">
+                <div class="section-header">
+                    <h2><i class="fas fa-user-circle"></i> Profile</h2>
+                    <p>Manage your account information</p>
+                </div>
+
+                <div class="profile-card">
+                    <div class="profile-header">
+                        <div class="profile-avatar" id="profileAvatar">
+                            <i class="fas fa-user"></i>
+                            <div class="avatar-overlay">
+                                <i class="fas fa-camera"></i>
+                            </div>
+                        </div>
+                        <div class="profile-meta">
+                            <h3 id="profileName">User Name</h3>
+                            <span class="role-badge" id="profileRole">Administrator</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">First Name</label>
+                        <input type="text" class="form-input" id="firstName" placeholder="First Name">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Last Name</label>
+                        <input type="text" class="form-input" id="lastName" placeholder="Last Name">
+                    </div>
+                    <div class="form-group full-width">
+                        <label class="form-label">Email</label>
+                        <div class="input-with-status">
+                            <input type="email" class="form-input" id="profileEmail" placeholder="Email address" disabled>
+                            <span class="input-status"><i class="fas fa-lock"></i></span>
+                        </div>
+                        <span class="field-hint">Contact admin to change email</span>
+                    </div>
+                    <div class="form-group full-width">
+                        <label class="form-label">Job Title</label>
+                        <input type="text" class="form-input" id="jobTitle" placeholder="e.g. Branch Head">
+                    </div>
+                    <div class="form-group full-width">
+                        <label class="form-label">Phone Number</label>
+                        <input type="tel" class="form-input" id="phone" placeholder="+91 XXXXX XXXXX">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button class="btn btn-secondary" id="resetProfileBtn">
+                        <span class="btn-text">Reset</span>
+                    </button>
+                    <button class="btn btn-primary" id="saveProfileBtn">
+                        <span class="btn-text">Save Changes</span>
+                        <span class="btn-loader"><i class="fas fa-circle-notch fa-spin"></i></span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- ====== NOTIFICATIONS SECTION ====== -->
+            <section class="settings-section" id="section-notifications">
+                <div class="section-header">
+                    <h2><i class="fas fa-bell"></i> Notifications</h2>
+                    <p>Control what notifications you receive</p>
+                </div>
+
+                <div class="setting-group">
+                    <label class="setting-label">Email Notifications</label>
+                    <p class="setting-desc">Receive notifications via email</p>
+                    <div class="toggle-row">
+                        <div>
+                            <span class="toggle-title">Report submissions</span>
+                            <span class="toggle-desc">Get notified when team submits reports</span>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="notifSubmissions" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="toggle-row">
+                        <div>
+                            <span class="toggle-title">Performance alerts</span>
+                            <span class="toggle-desc">Alert when KPIs drop below threshold</span>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="notifAlerts" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="toggle-row">
+                        <div>
+                            <span class="toggle-title">Weekly digest</span>
+                            <span class="toggle-desc">Summary of team activity every Monday</span>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="notifDigest" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="toggle-row">
+                        <div>
+                            <span class="toggle-title">System updates</span>
+                            <span class="toggle-desc">New features and maintenance notices</span>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="notifSystem">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <label class="setting-label">In-App Notifications</label>
+                    <p class="setting-desc">Show notifications within the dashboard</p>
+                    <div class="toggle-row">
+                        <div>
+                            <span class="toggle-title">Toast notifications</span>
+                            <span class="toggle-desc">Pop-up messages for actions and events</span>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="notifToast" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="toggle-row">
+                        <div>
+                            <span class="toggle-title">Sound alerts</span>
+                            <span class="toggle-desc">Play a sound for important notifications</span>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="notifSound">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <label class="setting-label">Quiet Hours</label>
+                    <p class="setting-desc">Pause notifications during specific hours</p>
+                    <div class="toggle-row">
+                        <div>
+                            <span class="toggle-title">Enable quiet hours</span>
+                            <span class="toggle-desc">No notifications between specified times</span>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="quietHours">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="time-range" id="quietHoursRange" style="display:none;">
+                        <div class="form-group">
+                            <label class="form-label">From</label>
+                            <input type="time" class="form-input" id="quietFrom" value="22:00">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">To</label>
+                            <input type="time" class="form-input" id="quietTo" value="07:00">
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ====== SECURITY SECTION ====== -->
+            <section class="settings-section" id="section-security">
+                <div class="section-header">
+                    <h2><i class="fas fa-shield-alt"></i> Security</h2>
+                    <p>Manage your password and security settings</p>
+                </div>
+
+                <div class="setting-group">
+                    <label class="setting-label">Change Password</label>
+                    <p class="setting-desc">Update your account password</p>
+                    <div class="form-grid">
+                        <div class="form-group full-width">
+                            <label class="form-label">Current Password</label>
+                            <div class="input-group">
+                                <input type="password" class="form-input" id="currentPassword" placeholder="Enter current password">
+                                <button type="button" class="toggle-pw" id="toggleCurrentPw">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="form-group full-width">
+                            <label class="form-label">New Password</label>
+                            <div class="input-group">
+                                <input type="password" class="form-input" id="settingsNewPassword" placeholder="Enter new password">
+                                <button type="button" class="toggle-pw" id="toggleSettingsNewPw">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <div class="strength-bar">
+                                <div class="strength-fill" id="settingsStrengthFill"></div>
+                            </div>
+                            <span class="strength-text" id="settingsStrengthText"></span>
+                        </div>
+                        <div class="form-group full-width">
+                            <label class="form-label">Confirm New Password</label>
+                            <div class="input-group">
+                                <input type="password" class="form-input" id="settingsConfirmPassword" placeholder="Re-enter new password">
+                                <span class="input-status" id="settingsConfirmStatus"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" id="changePasswordBtn">
+                        <span class="btn-text">Update Password</span>
+                        <span class="btn-loader"><i class="fas fa-circle-notch fa-spin"></i></span>
+                    </button>
+                </div>
+
+                <div class="setting-group">
+                    <label class="setting-label">Active Sessions</label>
+                    <p class="setting-desc">Manage your active login sessions</p>
+                    <div class="session-list">
+                        <div class="session-item current">
+                            <div class="session-icon"><i class="fas fa-desktop"></i></div>
+                            <div class="session-details">
+                                <span class="session-device">This Device - Chrome</span>
+                                <span class="session-meta">Current session • Last active now</span>
+                            </div>
+                            <span class="session-badge">Active</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="setting-group danger-zone">
+                    <label class="setting-label">Danger Zone</label>
+                    <p class="setting-desc">Irreversible account actions</p>
+                    <div class="toggle-row">
+                        <div>
+                            <span class="toggle-title">Delete Account</span>
+                            <span class="toggle-desc">Permanently delete your account and all data</span>
+                        </div>
+                        <button class="btn btn-danger" id="deleteAccountBtn">
+                            <span class="btn-text"><i class="fas fa-trash-alt"></i> Delete</span>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ====== LANGUAGE SECTION ====== -->
+            <section class="settings-section" id="section-language">
+                <div class="section-header">
+                    <h2><i class="fas fa-globe"></i> Language & Region</h2>
+                    <p>Set your preferred language and regional settings</p>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Language</label>
+                        <div class="custom-select-wrapper">
+                            <select class="form-select" id="languageSelect">
+                                <option value="en">English</option>
+                                <option value="hi">Hindi</option>
+                                <option value="ta">Tamil</option>
+                                <option value="te">Telugu</option>
+                                <option value="bn">Bengali</option>
+                                <option value="mr">Marathi</option>
+                                <option value="kn">Kannada</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Date Format</label>
+                        <div class="custom-select-wrapper">
+                            <select class="form-select" id="dateFormat">
+                                <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                                <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                                <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                                <option value="DD-MMM-YYYY">DD-MMM-YYYY</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Timezone</label>
+                        <div class="custom-select-wrapper">
+                            <select class="form-select" id="timezone">
+                                <option value="Asia/Kolkata">India (IST, UTC+5:30)</option>
+                                <option value="UTC">UTC</option>
+                                <option value="America/New_York">Eastern Time (ET)</option>
+                                <option value="America/Chicago">Central Time (CT)</option>
+                                <option value="America/Denver">Mountain Time (MT)</option>
+                                <option value="America/Los_Angeles">Pacific Time (PT)</option>
+                                <option value="Europe/London">GMT (UTC+0)</option>
+                                <option value="Europe/Berlin">CET (UTC+1)</option>
+                                <option value="Asia/Dubai">Gulf (UTC+4)</option>
+                                <option value="Asia/Singapore">SGT (UTC+8)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Currency</label>
+                        <div class="custom-select-wrapper">
+                            <select class="form-select" id="currency">
+                                <option value="INR">INR - Indian Rupee (₹)</option>
+                                <option value="USD">USD - US Dollar ($)</option>
+                                <option value="EUR">EUR - Euro (€)</option>
+                                <option value="GBP">GBP - British Pound (£)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button class="btn btn-primary" id="saveRegionalBtn">
+                        <span class="btn-text">Save Preferences</span>
+                        <span class="btn-loader"><i class="fas fa-circle-notch fa-spin"></i></span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- ====== DATA & EXPORT SECTION ====== -->
+            <section class="settings-section" id="section-data">
+                <div class="section-header">
+                    <h2><i class="fas fa-database"></i> Data & Export</h2>
+                    <p>Download your data or manage local storage</p>
+                </div>
+
+                <div class="setting-group">
+                    <label class="setting-label">Export Reports</label>
+                    <p class="setting-desc">Download your report data in various formats</p>
+                    <div class="export-grid">
+                        <button class="export-card" id="exportCSV">
+                            <i class="fas fa-file-csv"></i>
+                            <span class="export-title">CSV</span>
+                            <span class="export-desc">Spreadsheet data</span>
+                        </button>
+                        <button class="export-card" id="exportJSON">
+                            <i class="fas fa-file-code"></i>
+                            <span class="export-title">JSON</span>
+                            <span class="export-desc">Structured data</span>
+                        </button>
+                        <button class="export-card" id="exportPDF">
+                            <i class="fas fa-file-pdf"></i>
+                            <span class="export-title">PDF</span>
+                            <span class="export-desc">Print-ready report</span>
+                        </button>
+                        <button class="export-card" id="exportExcel">
+                            <i class="fas fa-file-excel"></i>
+                            <span class="export-title">Excel</span>
+                            <span class="export-desc">Full workbook</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <label class="setting-label">Local Storage</label>
+                    <p class="setting-desc">Manage data stored on this device</p>
+                    <div class="storage-info">
+                        <div class="storage-row">
+                            <span class="storage-label">
+                                <i class="fas fa-database"></i> App Data
+                            </span>
+                            <span class="storage-value" id="storageSize">Calculating...</span>
+                        </div>
+                        <div class="storage-row">
+                            <span class="storage-label">
+                                <i class="fas fa-image"></i> Cached Files
+                            </span>
+                            <span class="storage-value" id="cacheSize">Calculating...</span>
+                        </div>
+                        <div class="storage-progress">
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="storageFill" style="width: 35%"></div>
+                            </div>
+                            <span class="storage-text" id="storageText">35% of 10 MB used</span>
+                        </div>
+                    </div>
+                    <button class="btn btn-danger-outline" id="clearCacheBtn">
+                        <i class="fas fa-broom"></i>
+                        <span class="btn-text">Clear Cache</span>
+                    </button>
+                </div>
+
+                <div class="setting-group">
+                    <label class="setting-label">Import Data</label>
+                    <p class="setting-desc">Import report data from a file</p>
+                    <div class="upload-zone" id="importZone">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <span>Drag & drop a file here, or <strong>browse</strong></span>
+                        <span class="upload-hint">Supports CSV, JSON (Max 5MB)</span>
+                        <input type="file" id="importFile" accept=".csv,.json" hidden>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <script src="settings.js"></script>
+</body>
+</html>
