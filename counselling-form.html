@@ -3,28 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CADENCE - Counselling Cadence</title>
+    <title>Physics Wallah Vidyapeeth - Counselling Form</title>
 
     <!-- Fonts & Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="login.css">
     <style>
-        /* ===== COUNSELLING FORM SPECIFIC STYLES ===== */
-        .form-page {
+        /* ===== COUNSELLING FORM PAGE STYLES ===== */
+
+        /* Top navigation tabs */
+        .form-nav {
             display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: 24px;
+        }
+
+        .form-nav a {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 8px 16px;
+            border-radius: var(--radius-sm);
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: var(--transition);
+        }
+
+        .form-nav a:hover {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        .form-nav a.active {
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            color: #fff;
+            box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);
+        }
+
+        .form-page {
             min-height: 100vh;
             background: var(--bg-primary);
         }
 
         .form-main {
-            flex: 1;
-            margin-left: 260px;
-            padding: 30px 35px;
-            transition: var(--transition);
-            max-width: 900px;
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 30px 28px 60px;
         }
 
         .form-container {
@@ -280,17 +309,26 @@
         .btn-submit.loading .btn-text { display: none; }
         .btn-submit.loading .btn-loader { display: inline; }
 
+        /* Required note */
+        .required-note {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 18px;
+            padding-top: 14px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .required-note span { color: var(--accent-red); }
+
         @media (max-width: 768px) {
-            .form-main {
-                margin-left: 0;
-                padding: 20px 16px;
-            }
+            .form-nav { display: none; }
+            .form-main { padding: 20px 16px; }
             .form-container { padding: 20px; }
             .form-grid { grid-template-columns: 1fr; }
             .form-type-selector { flex-direction: column; }
         }
 
-        /* Toast styles (reuse from dashboard) */
+        /* Toast styles */
         .toast-container {
             position: fixed;
             top: 24px;
@@ -326,58 +364,42 @@
 </head>
 <body>
 <div class="form-page">
-    <!-- ========== SIDEBAR (same as dashboard) ========== -->
-    <aside class="sidebar" id="sidebar">
-        <div class="sidebar-header">
+    <!-- ========== TOPBAR (same style as dashboard) ========== -->
+    <header class="topbar" id="topbar">
+        <div class="topbar-left" style="display:flex;align-items:center;">
             <div class="logo">
                 <i class="fas fa-chart-line"></i>
                 <span>CADENCE</span>
             </div>
-            <button class="sidebar-toggle" id="sidebarToggle">
-                <i class="fas fa-bars"></i>
-            </button>
+            <nav class="form-nav">
+                <a href="index.html"><i class="fas fa-home"></i> Dashboard</a>
+                <a href="counselling-form.html" class="active"><i class="fas fa-clipboard-list"></i> Counselling Form</a>
+                <a href="settings.html"><i class="fas fa-cog"></i> Settings</a>
+            </nav>
         </div>
-        <nav class="sidebar-nav">
-            <ul>
-                <li>
-                    <a href="index.html">
-                        <i class="fas fa-home"></i>
-                        <span>Dashboard</span>
-                    </a>
-                </li>
-                <li class="active">
-                    <a href="counselling-form.html">
-                        <i class="fas fa-clipboard-list"></i>
-                        <span>Counselling Cadence</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="settings.html">
-                        <i class="fas fa-cog"></i>
-                        <span>Settings</span>
-                    </a>
-                </li>
-            </ul>
-        </nav>
-        <div class="sidebar-footer">
-            <div class="user-info">
-                <div class="user-avatar" id="sidebarAvatar"><i class="fas fa-user"></i></div>
-                <div class="user-details">
-                    <span class="user-name" id="sidebarUserName">User</span>
-                    <span class="user-role" id="sidebarUserRole">Loading...</span>
+        <div class="topbar-right">
+            <div class="topbar-actions">
+                <a href="index.html" class="action-btn" title="Back to Dashboard">
+                    <i class="fas fa-arrow-left"></i>
+                </a>
+                <div class="profile-btn" id="profileBtn" title="Signed in as" style="position:relative;cursor:pointer;">
+                    <div class="profile-avatar" id="profileAvatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="profile-info" id="profileInfo">
+                        <span class="profile-name" id="profileUserName">User</span>
+                        <span class="profile-role" id="profileUserRole">Role</span>
+                    </div>
                 </div>
             </div>
-            <button class="logout-btn" id="logoutBtn" title="Sign Out">
-                <i class="fas fa-sign-out-alt"></i>
-            </button>
         </div>
-    </aside>
+    </header>
 
     <!-- ========== MAIN CONTENT ========== -->
     <main class="form-main" id="mainContent">
         <div class="form-container" id="formContainer">
             <h1><i class="fas fa-clipboard-list" style="color:var(--accent-blue);margin-right:10px;"></i>Counselling Cadence</h1>
-            <p class="subtitle">This form is intended for recording the day-to-day details of 1-on-1 sessions, and audits.</p>
+            <p class="subtitle">This form is intended for recording the day-to-day details of 1-on-1 sessions, and audits. <strong>All fields marked <span style="color:var(--accent-red);">*</span> are mandatory.</strong></p>
 
             <!-- ===== TYPE SELECTOR ===== -->
             <div class="form-type-selector">
@@ -422,16 +444,16 @@
                             </select>
                         </div>
                         <div class="form-group full-width">
-                            <label><i class="fas fa-envelope"></i> Meeting Attendees (Email IDs comma separated)</label>
-                            <input type="text" id="meetingAttendees" placeholder="email1@pw.live, email2@pw.live">
+                            <label><i class="fas fa-envelope"></i> Meeting Attendees (Email IDs comma separated) <span class="required">*</span></label>
+                            <input type="text" id="meetingAttendees" required placeholder="email1@pw.live, email2@pw.live">
                         </div>
                         <div class="form-group full-width">
                             <label><i class="fas fa-file-alt"></i> Discussion Summary / MOM <span class="required">*</span></label>
                             <textarea id="meetingSummary" placeholder="Enter meeting summary..." required></textarea>
                         </div>
                         <div class="form-group full-width">
-                            <label><i class="fas fa-link"></i> Recording Link</label>
-                            <input type="url" id="meetingRecording" placeholder="https://drive.google.com/...">
+                            <label><i class="fas fa-link"></i> Recording Link <span class="required">*</span></label>
+                            <input type="url" id="meetingRecording" required placeholder="https://drive.google.com/...">
                         </div>
                     </div>
                 </form>
@@ -458,8 +480,8 @@
                             <input type="date" id="auditDate" required>
                         </div>
                         <div class="form-group">
-                            <label><i class="fas fa-link"></i> Lead Link</label>
-                            <input type="url" id="auditLeadLink" placeholder="https://...">
+                            <label><i class="fas fa-link"></i> Lead Link <span class="required">*</span></label>
+                            <input type="url" id="auditLeadLink" required placeholder="https://...">
                         </div>
                         <div class="form-group full-width">
                             <label><i class="fas fa-envelope"></i> Counsellor Email ID <span class="required">*</span></label>
@@ -480,6 +502,12 @@
                         </div>
                     </div>
                 </form>
+            </div>
+
+            <!-- ===== REQUIRED FIELDS NOTE ===== -->
+            <div class="required-note">
+                <i class="fas fa-info-circle" style="color:var(--accent-blue);margin-right:4px;"></i>
+                All fields marked <span>*</span> are mandatory. Form cannot be submitted until every section is filled.
             </div>
 
             <!-- ===== FORM ACTIONS ===== -->
@@ -514,5 +542,27 @@
 <!-- Scripts -->
 <script src="users.js"></script>
 <script src="counselling-form.js"></script>
+<script>
+    // ===== TOPBAR USER INFO =====
+    (function () {
+        const session = JSON.parse(localStorage.getItem('cadence-session') || '{}');
+        if (!session.email) {
+            window.location.href = 'login.html';
+            return;
+        }
+        const name = session.name || session.email.split('@')[0]
+            .replace(/[._]/g, ' ')
+            .split(' ')
+            .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(' ');
+        const roleLabels = { admin: 'Admin', rbh: 'RBH', rcl: 'RCL', bh: 'BH', cl: 'CL' };
+        const nameEl = document.getElementById('profileUserName');
+        const roleEl = document.getElementById('profileUserRole');
+        const avatarEl = document.getElementById('profileAvatar');
+        if (nameEl) nameEl.textContent = name;
+        if (roleEl) roleEl.textContent = roleLabels[session.role] || session.role || '';
+        if (avatarEl) avatarEl.innerHTML = '<span style="font-weight:700;font-size:0.9rem;">' + (session.email || 'U')[0].toUpperCase() + '</span>';
+    })();
+</script>
 </body>
 </html>

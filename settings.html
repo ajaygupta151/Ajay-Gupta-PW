@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Settings - CADENCE</title>
+    <title>Settings - Physics Wallah Vidyapeeth</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="login.css">
     <link rel="stylesheet" href="settings.css">
@@ -26,11 +26,12 @@
             <a href="index.html" class="back-btn" title="Back to Dashboard">
                 <i class="fas fa-arrow-left"></i>
             </a>
-            <div class="logo">
-                <i class="fas fa-bolt"></i>
-                <span class="logo-text">CADENCE</span>
-                <span class="logo-divider">|</span>
-                <span class="logo-subtitle">Settings</span>
+            <div class="logo" style="display:flex;align-items:center;gap:10px;">
+                <img class="pw-logo-img" src="assets/pw-logo.svg" alt="Physics Wallah" width="36" height="36" style="border-radius:8px;">
+                <span style="display:flex;flex-direction:column;line-height:1.15;">
+                    <span class="logo-text" style="font-weight:800;font-size:15px;letter-spacing:0.3px;">Physics Wallah</span>
+                    <span style="font-size:10px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:var(--primary,#FF2D2D);">Vidyapeeth · Settings</span>
+                </span>
             </div>
         </div>
         <div class="topbar-right">
@@ -379,15 +380,25 @@
                                 <span class="input-status" id="settingsConfirmStatus"></span>
                             </div>
                         </div>
+                        <div class="form-group full-width">
+                            <label class="form-label">Email OTP</label>
+                            <p class="setting-desc">An OTP will be sent to <strong id="otpEmailHint" style="color:var(--text-primary);"></strong> to verify this password change.</p>
+                            <div class="input-group">
+                                <input type="text" class="form-input" id="settingsOtp" placeholder="6-digit OTP" maxlength="6" inputmode="numeric" disabled>
+                                <button type="button" class="btn btn-secondary" id="sendSettingsOtpBtn" style="border-radius:0 var(--radius-sm) var(--radius-sm) 0;white-space:nowrap;">
+                                    <span class="btn-text"><i class="fas fa-paper-plane"></i> Send OTP</span>
+                                    <span class="btn-loader"><i class="fas fa-circle-notch fa-spin"></i></span>
+                                </button>
+                            </div>
+                            <span class="strength-text" id="settingsOtpStatus"></span>
+                        </div>
                     </div>
                     <button class="btn btn-primary" id="changePasswordBtn">
-                        <span class="btn-text">Update Password</span>
+                        <span class="btn-text"><i class="fas fa-key"></i> Verify &amp; Update Password</span>
                         <span class="btn-loader"><i class="fas fa-circle-notch fa-spin"></i></span>
                     </button>
                     <div class="field-hint" style="margin-top: 8px;">
-                        <a href="#" id="forgotPasswordFromSettings" style="color: var(--primary); text-decoration: none;">
-                            <i class="fas fa-key"></i> Forgot current password? Reset via OTP
-                        </a>
+                        <span style="color: var(--text-secondary);">OTP is sent to your email to verify the password change.</span>
                     </div>
                 </div>
 
@@ -568,111 +579,6 @@
             </section>
 
         </main>
-    </div>
-
-    <!-- ===== OTP PASSWORD RESET MODAL ===== -->
-    <div class="modal-overlay" id="otpModal" style="display:none;">
-        <div class="modal-card">
-            <!-- Step 1: Send OTP -->
-            <div class="otp-step" id="otpStep1">
-                <div class="modal-header">
-                    <h3><i class="fas fa-shield-alt"></i> Reset Password via OTP</h3>
-                    <p>A 6-digit code will be sent to your email</p>
-                </div>
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label class="form-label">Email Address</label>
-                        <input type="email" class="form-input" id="otpResetEmail" disabled>
-                    </div>
-                </div>
-                <div class="modal-actions">
-                    <button class="btn btn-secondary" id="otpCancel1">Cancel</button>
-                    <button class="btn btn-primary" id="otpSendBtn">
-                        <span class="btn-text">Send OTP</span>
-                        <span class="btn-loader"><i class="fas fa-circle-notch fa-spin"></i></span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Step 2: Enter OTP -->
-            <div class="otp-step" id="otpStep2" style="display:none;">
-                <div class="modal-header">
-                    <h3><i class="fas fa-key"></i> Enter OTP</h3>
-                    <p>We sent a 6-digit code to <strong id="otpModalEmail"></strong></p>
-                </div>
-                <div class="otp-display" id="modalOtpDisplay">
-                    <i class="fas fa-key"></i>
-                    <span>Your OTP: <strong id="modalGeneratedOtp"></strong></span>
-                    <button type="button" class="copy-otp" id="modalCopyOtp"><i class="fas fa-copy"></i></button>
-                </div>
-                <div class="modal-body">
-                    <div class="otp-inputs" id="modalOtpInputs">
-                        <input type="text" maxlength="1" class="otp-input" data-index="0" inputmode="numeric">
-                        <input type="text" maxlength="1" class="otp-input" data-index="1" inputmode="numeric">
-                        <input type="text" maxlength="1" class="otp-input" data-index="2" inputmode="numeric">
-                        <div class="otp-separator"></div>
-                        <input type="text" maxlength="1" class="otp-input" data-index="3" inputmode="numeric">
-                        <input type="text" maxlength="1" class="otp-input" data-index="4" inputmode="numeric">
-                        <input type="text" maxlength="1" class="otp-input" data-index="5" inputmode="numeric">
-                    </div>
-                    <span class="form-error" id="modalOtpError"></span>
-                    <div class="otp-timer">
-                        <span id="modalOtpTimer">Resend OTP in <strong>00:30</strong></span>
-                        <a href="#" class="resend-otp" id="modalResendOtp" style="display:none;">Resend OTP</a>
-                    </div>
-                </div>
-                <div class="modal-actions">
-                    <button class="btn btn-secondary" id="otpCancel2">Cancel</button>
-                    <button class="btn btn-primary" id="modalVerifyOtpBtn">
-                        <span class="btn-text">Verify OTP</span>
-                        <span class="btn-loader"><i class="fas fa-circle-notch fa-spin"></i></span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Step 3: New Password -->
-            <div class="otp-step" id="otpStep3" style="display:none;">
-                <div class="modal-header">
-                    <h3><i class="fas fa-lock"></i> Set New Password</h3>
-                    <p>Create a strong new password for your account</p>
-                </div>
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label class="form-label">New Password</label>
-                        <input type="password" class="form-input" id="otpNewPassword" placeholder="Enter new password">
-                        <div class="strength-bar">
-                            <div class="strength-fill" id="modalStrengthFill"></div>
-                        </div>
-                        <span class="strength-text" id="modalStrengthText"></span>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Confirm Password</label>
-                        <input type="password" class="form-input" id="otpConfirmPassword" placeholder="Re-enter new password">
-                        <span class="input-status" id="modalConfirmStatus"></span>
-                    </div>
-                    <span class="form-error" id="modalResetError"></span>
-                </div>
-                <div class="modal-actions">
-                    <button class="btn btn-secondary" id="otpCancel3">Cancel</button>
-                    <button class="btn btn-primary" id="modalResetBtn">
-                        <span class="btn-text">Update Password</span>
-                        <span class="btn-loader"><i class="fas fa-circle-notch fa-spin"></i></span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Step 4: Success -->
-            <div class="otp-step" id="otpStep4" style="display:none;">
-                <div class="modal-body" style="text-align: center; padding: 40px 20px;">
-                    <div class="success-icon" style="margin-bottom: 20px;">
-                        <i class="fas fa-check-circle" style="font-size: 3rem; color: var(--success);"></i>
-                    </div>
-                    <h3 style="margin-bottom: 8px;">Password Updated!</h3>
-                    <p style="color: var(--text-secondary); margin-bottom: 24px;">Your password has been changed successfully.</p>
-                    <button class="btn btn-primary" id="modalSuccessBtn">Done</button>
-                </div>
-            </div>
-        </div>
     </div>
 
     <script src="users.js"></script>

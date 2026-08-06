@@ -13,6 +13,10 @@ async function initDashboard() {
     if (window.__cadenceInitDone) return;
     window.__cadenceInitDone = true;
 
+    // ========== THEME (from Settings > Appearance) ==========
+    const savedTheme = localStorage.getItem('cadence-theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+
     // ========== SESSION CHECK ==========
     const session = JSON.parse(localStorage.getItem('cadence-session') || '{}');
     if (!session.email) {
@@ -42,6 +46,10 @@ async function initDashboard() {
             orgData = JSON.parse(cached);
         }
     }
+
+    // Region id → name map (module-level access for the overview chart)
+    window._regionById = {};
+    (orgData.regions || []).forEach(r => { window._regionById[r.id] = r.name; });
 
     // Build org data from sheet rows
     function buildOrgDataFromSheet(rows) {
@@ -79,10 +87,13 @@ async function initDashboard() {
 
             // Store user
             if (email) {
+                const empTypeRaw = (row.employee_type || 'CL').toUpperCase();
                 allUsers[email] = {
                     email: email,
                     name: email.split('@')[0].replace(/[._]/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
-                    role: row.employee_type === 'CM' ? 'cl' : (row.employee_type || 'CL').toLowerCase(),
+                    // Display-level role only — the Sheet2 'role' column is the
+                    // single source of truth for login/admin access (users.js).
+                    role: empTypeRaw === 'CM' ? 'cl' : empTypeRaw.toLowerCase(),
                     region: region,
                     center: center,
                     rcl: rclEmail,
@@ -203,6 +214,15 @@ async function initDashboard() {
             }
         });
 
+        // ---- ADMIN OVERRIDE (mirrors users.js) ----
+        if (typeof ADMIN_EMAILS !== 'undefined') {
+            ADMIN_EMAILS.forEach(email => {
+                const normalized = email.toLowerCase().trim();
+                if (!normalized || !allUsers[normalized]) return;
+                allUsers[normalized].role = 'admin';
+            });
+        }
+
         // Convert to array format
         const regionsArray = Object.values(regions).map(region => ({
             ...region,
@@ -274,8 +294,9 @@ async function initDashboard() {
         let allowedCenters = null;
 
         if (role.level <= 1) {
-            // CL: own center only
-            allowedCenters = [user.center];
+            // CL: own center only (session stores center name, resolve to center id)
+            const ownCenter = findCenterByCLOrName(user.email, user.center);
+            allowedCenters = ownCenter ? [ownCenter.id] : (user.center ? [user.center] : []);
         } else if (role.level <= 2) {
             // BH: own centers only
             const bhData = findBH(user.bh);
@@ -455,11 +476,12 @@ async function initDashboard() {
         sel.innerHTML = '<option value="">All Centers</option>';
         const role = ROLES[currentRole];
         const user = session;
-        // CL: only own center
+        // CL: only own center (resolve session center name to center id)
         if (role.level <= 1) {
-            const c = findCenterById(user.center);
-            sel.innerHTML += `<option value="${user.center}">${c ? c.name : user.center}</option>`;
-            console.log(`[CASCADE] populateCenterFilter: CL role, added own center '${user.center}'`);
+            const c = findCenterByCLOrName(user.email, user.center);
+            const centerId = c ? c.id : user.center;
+            sel.innerHTML += `<option value="${centerId}">${c ? c.name : user.center}</option>`;
+            console.log(`[CASCADE] populateCenterFilter: CL role, added own center '${centerId}'`);
             return;
         }
         let count = 0;
@@ -514,6 +536,28 @@ async function initDashboard() {
             for (const bh of region.bhs) {
                 for (const c of bh.centers) {
                     if (c.id === centerId) return c;
+                }
+            }
+        }
+        return null;
+    }
+
+    // Helper: resolve a CL's center. Session stores the center NAME (from sheet),
+    // but org-data center ids are the CL's email. Match by email first, name as fallback.
+    function findCenterByCLOrName(clEmail, centerName) {
+        for (const region of orgData.regions) {
+            for (const bh of region.bhs) {
+                for (const c of bh.centers) {
+                    if (c.id === clEmail) return c;
+                }
+            }
+        }
+        if (centerName) {
+            for (const region of orgData.regions) {
+                for (const bh of region.bhs) {
+                    for (const c of bh.centers) {
+                        if (c.name === centerName) return c;
+                    }
                 }
             }
         }
@@ -614,7 +658,8 @@ async function initDashboard() {
             regionSel.disabled = true;
             bhSel.value = user.bh;
             bhSel.disabled = true;
-            centerSel.value = user.center;
+            const ownCenter = findCenterByCLOrName(user.email, user.center);
+            centerSel.value = ownCenter ? ownCenter.id : user.center;
             centerSel.disabled = true;
             clSel.value = user.email;
             clSel.disabled = true;
@@ -687,8 +732,8 @@ async function initDashboard() {
         updateTrend('trendPending', agg.pending, agg.total);
         updateTrend('trendOverdue', agg.overdue, agg.total);
 
-        // Update Chart
-        updateChart(monthly);
+        // Update Chart (3-line overview: region total / me / selected person)
+        updateOverviewChart();
 
         // Update Team Performance
         updateTeamList(centers);
@@ -703,141 +748,126 @@ async function initDashboard() {
         el.innerHTML = `<i class="fas fa-arrow-${isDown ? (pct < 15 ? 'up' : 'down') : (pct > 50 ? 'up' : 'down')}"></i><span>${pct}%</span>`;
     }
 
-    function updateChart(monthly) {
-        if (!cadenceChart) return;
-        cadenceChart.data.datasets[0].data = monthly.assigned;
-        cadenceChart.data.datasets[1].data = monthly.completed;
-        cadenceChart.data.datasets[2].data = monthly.overdue;
-        // datasets 3 (Audits) and 4 (Meetings) are updated by overviewChartUpdate()
-        cadenceChart.update('active');
-    }
-
-    /* Populate user selector + update audit/meeting chart lines */
-    function initOverviewUserSelect() {
-        if (window.__overviewSelectDone) return;
-        window.__overviewSelectDone = true;
-
-        const sel = document.getElementById('overviewUserSelect');
-        if (!sel) return;
-
-        // Get roleMap from the summary data, or build from sheet
-        const session = JSON.parse(localStorage.getItem('cadence-session') || '{}');
-        const sessionEmail = (session.email || '').toLowerCase().trim();
-
-        // Build roleMap if we have sheet data
-        let roleMap = {};
-        try {
-            const cached = localStorage.getItem('cadence-sheet-data');
-            if (cached) {
-                const h = buildSummaryHierarchy(JSON.parse(cached));
-                roleMap = h.roleMap;
-            }
-        } catch(e) {}
-        if (sessionEmail && !roleMap[sessionEmail]) {
-            roleMap[sessionEmail] = session.role || 'CL';
-        }
-
-        const emails = Object.keys(roleMap).sort();
-        sel.innerHTML = emails.map(e =>
-            `<option value="${escHtml(e)}" ${e === sessionEmail ? 'selected' : ''}>${escHtml(e)} (${roleMap[e] || ''})</option>`
-        ).join('');
-
-        // Populate form rows from cache for chart data
-        window._overviewRoleMap = roleMap;
-
-        // Load form data & update chart
-        loadFormDataForChart(sessionEmail);
-
-        // On change
-        sel.addEventListener('change', () => {
-            loadFormDataForChart(sel.value);
-        });
-    }
-
-    async function loadFormDataForChart(email) {
-        if (!email) return;
-        try {
-            const resp = await fetch(SUMMARY_CONFIG.WEBAPP_URL + '?action=responses', { method: 'GET', mode: 'cors' });
-            if (!resp.ok) throw new Error('HTTP ' + resp.status);
-            const result = await resp.json();
-            if (!result.success) throw new Error('Web app failed');
-            const rows = result.data || [];
-
-            // Monthly aggregation
-            const auditMonthly = new Array(12).fill(0);
-            const meetingMonthly = new Array(12).fill(0);
-
-            rows.forEach(row => {
-                const subEmail = (row['Submitted By'] || '').toLowerCase().trim();
-                if (subEmail !== email) return;
-                const formType = row['Form Type'] || '';
-                let dateStr = '';
-                if (formType === 'Audits') dateStr = row['Audit Date'] || '';
-                else if (formType === '1-1 & Training') dateStr = row['Meeting Date'] || '';
-                const d = parseDateFlexible(dateStr);
-                if (!d) return;
-                const month = d.getMonth(); // 0-based
-                if (formType === 'Audits') auditMonthly[month]++;
-                else if (formType === '1-1 & Training') meetingMonthly[month]++;
-            });
-
-            if (cadenceChart) {
-                cadenceChart.data.datasets[3].data = auditMonthly;
-                cadenceChart.data.datasets[4].data = meetingMonthly;
-                cadenceChart.update('active');
-            }
-        } catch (err) {
-            console.error('Chart form data error:', err);
-        }
-    }
+    let lastCenters = [];
+    let maxOpenDepth = 2; // default expansion depth for the team tree (set per role in updateTeamList)
 
     function updateTeamList(centers) {
         const container = document.getElementById('teamList');
         if (!container) return;
 
-        // Gather unique CLs from visible centers
-        const clMap = {};
+        // Cache latest centers so the tree can be re-rendered when form data arrives
+        lastCenters = centers;
+        window.refreshTeamList = () => updateTeamList(lastCenters);
+
+        // Default expansion: only one level below the current user's own level.
+        // Tree depth: RBH=1, BH/RCL=2, CL=3. Own level from role (cl=1..admin=5)
+        //   admin -> open RBH; rbh -> open BH+RCL; rcl/bh -> open CL; cl -> whole path open
+        const role = ROLES[currentRole];
+        maxOpenDepth = role ? 6 - role.level : 2;
+
+        // ---- Build org hierarchy tree from visible centers ----
+        // Structure: RBH -> { BH -> [CLs] , RCL -> [CLs] }
+        // (CL appears under its BH AND under its RCL, per requirement)
+        const tree = {};
+
         centers.forEach(c => {
             const clEmail = c.cl;
-            if (clEmail && !clMap[clEmail]) {
-                const clUser = orgData.users[clEmail];
-                clMap[clEmail] = { 
-                    name: clUser?.name || clEmail, 
-                    center: c.name, 
-                    tasks: c.tasks 
-                };
-            } else if (clEmail && clMap[clEmail]) {
-                clMap[clEmail].tasks.total += c.tasks.total;
-                clMap[clEmail].tasks.completed += c.tasks.completed;
+            if (!clEmail) return;
+            const clUser = orgData.users ? orgData.users[clEmail] : null;
+            // Clean helper: '-' means empty in this sheet data
+            const clean = v => (v && v !== '-' ? v : '');
+            const rbhEmail = clean(clUser && clUser.rbh);
+            const rclEmail = clean(c.rcl) || clean(clUser && clUser.rcl);
+            const bhEmail = clean(c.bhId) || clean(clUser && clUser.bh);
+
+            const clNode = {
+                email: clEmail,
+                name: (clUser && clUser.name) || clEmail,
+                center: c.name,
+                tasks: c.tasks || { total: 0, completed: 0 }
+            };
+
+            const rbhKey = rbhEmail || rclEmail || bhEmail || 'Unassigned';
+            if (!tree[rbhKey]) tree[rbhKey] = { email: rbhKey, bhs: {}, rcls: {} };
+
+            // Under BH
+            if (bhEmail) {
+                if (!tree[rbhKey].bhs[bhEmail]) {
+                    tree[rbhKey].bhs[bhEmail] = {
+                        email: bhEmail,
+                        name: (orgData.users && orgData.users[bhEmail] && orgData.users[bhEmail].name) || bhEmail,
+                        cls: {}
+                    };
+                }
+                tree[rbhKey].bhs[bhEmail].cls[clEmail] = clNode;
+            }
+
+            // Under RCL
+            if (rclEmail) {
+                if (!tree[rbhKey].rcls[rclEmail]) {
+                    tree[rbhKey].rcls[rclEmail] = {
+                        email: rclEmail,
+                        name: (orgData.users && orgData.users[rclEmail] && orgData.users[rclEmail].name) || rclEmail,
+                        cls: {}
+                    };
+                }
+                tree[rbhKey].rcls[rclEmail].cls[clEmail] = clNode;
             }
         });
 
-        let html = '';
-        Object.values(clMap).forEach(person => {
-            const pct = person.tasks.total > 0 ? Math.round((person.tasks.completed / person.tasks.total) * 100) : 0;
-            const initials = person.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-            html += `
-                <div class="team-member">
-                    <div class="member-info">
-                        <div class="member-avatar">${initials}</div>
-                        <div>
-                            <h4>${person.name}</h4>
-                            <span>${person.center}</span>
-                        </div>
-                    </div>
-                    <div class="member-stats">
-                        <div class="progress-bar">
-                            <div class="progress" style="width: 0%;" data-progress="${pct}"></div>
-                        </div>
-                        <span class="progress-label">${pct}%</span>
-                    </div>
-                </div>`;
-        });
+        const rbhKeys = Object.keys(tree).sort((a, b) =>
+            ((orgData.users && orgData.users[tree[a].email] && orgData.users[tree[a].email].name) || tree[a].email)
+                .localeCompare((orgData.users && orgData.users[tree[b].email] && orgData.users[tree[b].email].name) || tree[b].email));
 
-        if (Object.keys(clMap).length === 0) {
-            html = '<p style="color: var(--text-muted); text-align: center; padding: 20px;">No team members found for current filters.</p>';
+        if (rbhKeys.length === 0) {
+            container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 20px;">No team members found for current filters.</p>';
+            return;
         }
 
+        // ---- Render ----
+        let html = '<div class="org-tree">';
+
+        rbhKeys.forEach(rbhKey => {
+            const rbh = tree[rbhKey];
+            const bhKeys = Object.keys(rbh.bhs).sort((a, b) => (rbh.bhs[a].name || '').localeCompare(rbh.bhs[b].name || ''));
+            const rclKeys = Object.keys(rbh.rcls).sort((a, b) => (rbh.rcls[a].name || '').localeCompare(rbh.rcls[b].name || ''));
+
+            // Unique CLs across the whole RBH subtree
+            const allCls = new Set();
+            bhKeys.forEach(k => Object.keys(rbh.bhs[k].cls).forEach(e => allCls.add(e)));
+            rclKeys.forEach(k => Object.keys(rbh.rcls[k].cls).forEach(e => allCls.add(e)));
+
+            const childrenHtml = [
+                bhKeys.map(bhk => {
+                    const bh = rbh.bhs[bhk];
+                    const clsHtml = Object.values(bh.cls)
+                        .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+                        .map(renderTreeLeaf)
+                        .join('');
+                    return renderTreeNode(bh.name, 'BH', Object.keys(bh.cls).length, clsHtml, bh.email, 2, collectSubtreeEmails(bh));
+                }).join(''),
+                rclKeys.map(rclk => {
+                    const rcl = rbh.rcls[rclk];
+                    const clsHtml = Object.values(rcl.cls)
+                        .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+                        .map(renderTreeLeaf)
+                        .join('');
+                    return renderTreeNode(rcl.name, 'RCL', Object.keys(rcl.cls).length, clsHtml, rcl.email, 2, collectSubtreeEmails(rcl));
+                }).join('')
+            ].join('');
+
+            html += renderTreeNode(
+                (orgData.users && orgData.users[rbh.email] && orgData.users[rbh.email].name) || (rbh.email === 'Unassigned' ? 'Unassigned' : rbh.email),
+                'RBH',
+                allCls.size,
+                childrenHtml,
+                rbh.email === 'Unassigned' ? '' : rbh.email,
+                1,
+                collectSubtreeEmails(rbh)
+            );
+        });
+
+        html += '</div>';
         container.innerHTML = html;
 
         // Re-observe progress bars
@@ -854,6 +884,84 @@ async function initDashboard() {
             });
         }, { threshold: 0.5 });
         bars.forEach(bar => observer.observe(bar));
+    }
+
+    // Collect every email in a node's subtree (node + all descendants)
+    function collectSubtreeEmails(node) {
+        const set = new Set();
+        (function walk(n) {
+            if (!n) return;
+            if (n.email) set.add(n.email.toLowerCase());
+            if (n.cls) Object.values(n.cls).forEach(c => walk(c));
+            if (n.bhs) Object.values(n.bhs).forEach(b => walk(b));
+            if (n.rcls) Object.values(n.rcls).forEach(r => walk(r));
+        })(node);
+        return set;
+    }
+
+    // Aggregate form fill stats for a set of team emails
+    function getTeamStats(emailSet) {
+        let audits = 0, meetings = 0;
+        emailSet.forEach(e => {
+            const fc = _formCountByEmail[e];
+            if (fc) { audits += fc.audits; meetings += fc.meetings; }
+        });
+        return { team: emailSet.size, total: audits + meetings, audits, meetings };
+    }
+
+    function initialsOf(name) {
+        return (name || '?').split(' ').filter(Boolean).map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    }
+
+    // Render a team-member card (RBH / BH / RCL) with full stats:
+    // team size (people working under them) + forms filled by the team,
+    // split into audits and 1-1 meetings.
+    function renderTreeNode(name, role, count, childrenHtml, email, depth, subtreeEmails) {
+        const stats = getTeamStats(subtreeEmails);
+        const underCount = stats.team - 1; // people under them (self excluded)
+        const collapsed = depth >= maxOpenDepth ? ' collapsed' : '';
+        const hasChildren = !!childrenHtml;
+        return `
+            <div class="tree-node${collapsed}">
+                <div class="tree-card${hasChildren ? ' clickable' : ''}" onclick="${hasChildren ? "this.parentElement.classList.toggle('collapsed')" : ''}">
+                    <div class="tree-card-head">
+                        ${hasChildren ? '<span class="tree-chevron"><i class="fas fa-chevron-down"></i></span>' : '<span class="tree-chevron ph"></span>'}
+                        <span class="tree-avatar">${initialsOf(name)}</span>
+                        <span class="tree-role-badge role-${role.toLowerCase()}">${role}</span>
+                        <span class="tree-name" title="${escHtml(name)}">${escHtml(name)}</span>
+                    </div>
+                    <div class="tree-card-stats">
+                        <div class="stat stat-team" title="People working under ${escHtml(name)}"><i class="fas fa-user-friends"></i><b>${underCount}</b><span>Team</span></div>
+                        <div class="stat stat-forms" title="Total forms filled by the team"><i class="fas fa-clipboard-check"></i><b>${stats.total}</b><span>Forms</span></div>
+                        <div class="stat stat-audits" title="Audits filled by the team"><i class="fas fa-clipboard-list"></i><b>${stats.audits}</b><span>Audits</span></div>
+                        <div class="stat stat-meetings" title="1-1 meetings filled by the team"><i class="fas fa-handshake"></i><b>${stats.meetings}</b><span>1-1</span></div>
+                    </div>
+                </div>
+                ${childrenHtml ? `<div class="tree-children">${childrenHtml}</div>` : ''}
+            </div>`;
+    }
+
+    // Render a CL leaf as a card (their own form fill stats)
+    function renderTreeLeaf(cl) {
+        const fc = _formCountByEmail[(cl.email || '').toLowerCase()] || { total: 0, audits: 0, meetings: 0 };
+        const pct = cl.tasks.total > 0 ? Math.round((cl.tasks.completed / cl.tasks.total) * 100) : 0;
+        return `
+            <div class="tree-node">
+                <div class="tree-card leaf">
+                    <div class="tree-card-head">
+                        <span class="tree-avatar">${initialsOf(cl.name)}</span>
+                        <span class="tree-role-badge role-cl">CL</span>
+                        <span class="tree-name" title="${escHtml(cl.name)}">${escHtml(cl.name)}</span>
+                        <span class="tree-leaf-center"><i class="fas fa-map-marker-alt"></i> ${escHtml(cl.center)}</span>
+                    </div>
+                    <div class="tree-card-stats">
+                        <div class="stat stat-team" title="People working under ${escHtml(cl.name)}"><i class="fas fa-user-friends"></i><b>0</b><span>Team</span></div>
+                        <div class="stat stat-forms" title="Forms filled by ${escHtml(cl.name)}"><i class="fas fa-clipboard-check"></i><b>${fc.total}</b><span>Forms</span></div>
+                        <div class="stat stat-audits" title="Audits filled by ${escHtml(cl.name)}"><i class="fas fa-clipboard-list"></i><b>${fc.audits}</b><span>Audits</span></div>
+                        <div class="stat stat-meetings" title="1-1 meetings filled by ${escHtml(cl.name)}"><i class="fas fa-handshake"></i><b>${fc.meetings}</b><span>1-1</span></div>
+                    </div>
+                </div>
+            </div>`;
     }
 
     // =============================================
@@ -886,47 +994,64 @@ async function initDashboard() {
         const chartCtx = ctx.getContext('2d');
 
         const gradientBlue = chartCtx.createLinearGradient(0, 0, 0, 300);
-        gradientBlue.addColorStop(0, 'rgba(59, 130, 246, 0.35)');
-        gradientBlue.addColorStop(1, 'rgba(59, 130, 246, 0.0)');
+        gradientBlue.addColorStop(0, 'rgba(20, 184, 166, 0.3)');
+        gradientBlue.addColorStop(1, 'rgba(20, 184, 166, 0.0)');
 
         const gradientGreen = chartCtx.createLinearGradient(0, 0, 0, 300);
         gradientGreen.addColorStop(0, 'rgba(34, 197, 94, 0.3)');
         gradientGreen.addColorStop(1, 'rgba(34, 197, 94, 0.0)');
 
-        const gradientOrange = chartCtx.createLinearGradient(0, 0, 0, 300);
-        gradientOrange.addColorStop(0, 'rgba(245, 158, 11, 0.25)');
-        gradientOrange.addColorStop(1, 'rgba(245, 158, 11, 0.0)');
+        const gradientViolet = chartCtx.createLinearGradient(0, 0, 0, 300);
+        gradientViolet.addColorStop(0, 'rgba(255, 45, 45, 0.28)');
+        gradientViolet.addColorStop(1, 'rgba(255, 45, 45, 0.0)');
 
         const gradientAudit = chartCtx.createLinearGradient(0, 0, 0, 300);
-        gradientAudit.addColorStop(0, 'rgba(59, 130, 246, 0.2)');
-        gradientAudit.addColorStop(1, 'rgba(59, 130, 246, 0.0)');
+        gradientAudit.addColorStop(0, 'rgba(255, 45, 45, 0.2)');
+        gradientAudit.addColorStop(1, 'rgba(255, 45, 45, 0.0)');
 
         const gradientMeeting = chartCtx.createLinearGradient(0, 0, 0, 300);
-        gradientMeeting.addColorStop(0, 'rgba(168, 85, 247, 0.2)');
-        gradientMeeting.addColorStop(1, 'rgba(168, 85, 247, 0.0)');
+        gradientMeeting.addColorStop(0, 'rgba(255, 138, 61, 0.2)');
+        gradientMeeting.addColorStop(1, 'rgba(255, 138, 61, 0.0)');
 
         cadenceChart = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
                 datasets: [
+                    // 1) Region Audits (filled)
                     {
-                        label: 'Tasks Assigned',
-                        data: [],
-                        borderColor: '#3b82f6',
-                        backgroundColor: gradientBlue,
+                        label: 'Region Audits',
+                        data: new Array(12).fill(0),
+                        borderColor: '#FF2D2D',
+                        backgroundColor: gradientAudit,
                         fill: true,
                         tension: 0.4,
                         borderWidth: 2.5,
                         pointRadius: 4,
-                        pointBackgroundColor: '#3b82f6',
+                        pointBackgroundColor: '#FF2D2D',
                         pointBorderColor: '#0f172a',
                         pointBorderWidth: 2,
                         pointHoverRadius: 7
                     },
+                    // 2) Region 1-1 & Training (filled)
                     {
-                        label: 'Tasks Completed',
-                        data: [],
+                        label: 'Region 1-1 & Training',
+                        data: new Array(12).fill(0),
+                        borderColor: '#FF8A3D',
+                        backgroundColor: gradientMeeting,
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2.5,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#FF8A3D',
+                        pointBorderColor: '#0f172a',
+                        pointBorderWidth: 2,
+                        pointHoverRadius: 7
+                    },
+                    // 3) Logged-in user's forms
+                    {
+                        label: 'Me',
+                        data: new Array(12).fill(0),
                         borderColor: '#22c55e',
                         backgroundColor: gradientGreen,
                         fill: true,
@@ -938,50 +1063,22 @@ async function initDashboard() {
                         pointBorderWidth: 2,
                         pointHoverRadius: 7
                     },
+                    // 4) Selected BH / RCL / CL (shown only when a person filter is set)
                     {
-                        label: 'Overdue',
-                        data: [],
-                        borderColor: '#f59e0b',
-                        backgroundColor: gradientOrange,
-                        fill: true,
-                        tension: 0.4,
-                        borderWidth: 2,
-                        pointRadius: 3,
-                        pointBackgroundColor: '#f59e0b',
-                        pointBorderColor: '#0f172a',
-                        pointBorderWidth: 2,
-                        pointHoverRadius: 6,
-                        borderDash: [5, 5]
-                    },
-                    {
-                        label: 'Audits',
+                        label: 'Selected BH/RCL/CL',
                         data: new Array(12).fill(0),
-                        borderColor: '#3b82f6',
-                        backgroundColor: gradientAudit,
-                        fill: true,
+                        borderColor: '#14b8a6',
+                        backgroundColor: gradientBlue,
+                        fill: false,
                         tension: 0.3,
-                        borderWidth: 2,
+                        borderWidth: 2.5,
                         pointRadius: 4,
-                        pointBackgroundColor: '#3b82f6',
+                        pointBackgroundColor: '#14b8a6',
                         pointBorderColor: '#0f172a',
                         pointBorderWidth: 2,
-                        pointHoverRadius: 6,
-                        borderDash: [3, 3]
-                    },
-                    {
-                        label: '1-1 Meetings',
-                        data: new Array(12).fill(0),
-                        borderColor: '#a855f7',
-                        backgroundColor: gradientMeeting,
-                        fill: true,
-                        tension: 0.3,
-                        borderWidth: 2,
-                        pointRadius: 4,
-                        pointBackgroundColor: '#a855f7',
-                        pointBorderColor: '#0f172a',
-                        pointBorderWidth: 2,
-                        pointHoverRadius: 6,
-                        borderDash: [3, 3]
+                        pointHoverRadius: 7,
+                        borderDash: [6, 4],
+                        hidden: true
                     }
                 ]
             },
@@ -1005,16 +1102,19 @@ async function initDashboard() {
                         cornerRadius: 8,
                         titleFont: { size: 13, weight: '600' },
                         bodyFont: { size: 12 },
-                        callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y} ${ctx.dataset.label.toLowerCase().includes('task') ? 'tasks' : ''}` }
+                        callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y}` }
                     }
                 },
                 scales: {
                     x: { grid: { color: 'rgba(51,65,85,0.3)', drawBorder: false }, ticks: { color: '#64748b', font: { size: 11, family: 'Inter' } } },
-                    y: { grid: { color: 'rgba(51,65,85,0.3)', drawBorder: false }, ticks: { color: '#64748b', font: { size: 11, family: 'Inter' } }, beginAtZero: true }
+                    y: { grid: { color: 'rgba(51,65,85,0.3)', drawBorder: false }, ticks: { color: '#64748b', font: { size: 11, family: 'Inter' }, precision: 0 }, beginAtZero: true }
                 },
                 interaction: { intersect: false, mode: 'index' }
             }
         });
+
+        // Expose chart instance for module-level overview updates
+        window.cadenceChart = cadenceChart;
     }
 
     // =============================================
@@ -1044,10 +1144,6 @@ async function initDashboard() {
         if (dropdownName) dropdownName.textContent = name;
         const dropdownEmail = document.getElementById('dropdownUserEmail');
         if (dropdownEmail) dropdownEmail.textContent = email;
-        
-        // Store for settings modal
-        window._session = session;
-        window._sessionEmail = email;
     }
     initProfile();
 
@@ -1066,130 +1162,17 @@ async function initDashboard() {
         profileDropdown.addEventListener('click', (e) => e.stopPropagation());
     }
 
-    // Settings Modal
-    const settingsModal = document.getElementById('settingsModal');
-    function openSettingsModal() {
-        settingsModal.classList.add('active');
-        settingsModal.style.display = 'flex';
-        // Fill user info
-        const session = JSON.parse(localStorage.getItem('cadence-session') || '{}');
-        const name = (session.email || '').split('@')[0].replace(/[._]/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-        document.getElementById('settingsAvatar').textContent = (session.email || 'U')[0].toUpperCase();
-        document.getElementById('settingsUserName').textContent = name;
-        document.getElementById('settingsUserEmail').textContent = session.email || '';
-    }
-    function closeSettingsModal() {
-        settingsModal.classList.remove('active');
-        settingsModal.style.display = 'none';
-        document.getElementById('settingsNewPassword').value = '';
-        document.getElementById('settingsConfirmPassword').value = '';
-        document.getElementById('settingsError').textContent = '';
-        document.getElementById('settingsStrengthFill').style.width = '0%';
-        document.getElementById('settingsStrengthText').textContent = '';
-        document.getElementById('settingsConfirmStatus').textContent = '';
-    }
-
     document.getElementById('dropdownSettings')?.addEventListener('click', (e) => {
         e.stopPropagation();
         profileDropdown.style.display = 'none';
-        openSettingsModal();
-    });
-
-    document.getElementById('settingsModalClose')?.addEventListener('click', closeSettingsModal);
-    settingsModal?.addEventListener('click', (e) => { if (e.target === settingsModal) closeSettingsModal(); });
-
-    // Settings: password strength & confirm
-    document.getElementById('settingsNewPassword')?.addEventListener('input', function() {
-        const strength = getPasswordStrength(this.value);
-        const fill = document.getElementById('settingsStrengthFill');
-        const text = document.getElementById('settingsStrengthText');
-        const colors = ['#ef4444','#f59e0b','#22c55e','#3b82f6'];
-        fill.style.width = (strength.score * 25) + '%';
-        fill.style.background = colors[strength.score - 1] || colors[0];
-        text.textContent = strength.label;
-        text.style.color = colors[strength.score - 1] || colors[0];
-        checkSettingsPasswords();
-    });
-    document.getElementById('settingsConfirmPassword')?.addEventListener('input', checkSettingsPasswords);
-
-    function checkSettingsPasswords() {
-        const pwd = document.getElementById('settingsNewPassword').value;
-        const confirm = document.getElementById('settingsConfirmPassword').value;
-        const status = document.getElementById('settingsConfirmStatus');
-        if (!confirm) { status.textContent = ''; status.style.color = ''; return; }
-        if (pwd === confirm) {
-            status.innerHTML = '<i class="fas fa-check-circle" style="color:#22c55e;font-size:1rem;"></i>';
-        } else {
-            status.innerHTML = '<i class="fas fa-times-circle" style="color:#ef4444;font-size:1rem;"></i>';
-        }
-    }
-
-    // Settings: change password
-    document.getElementById('settingsChangeBtn')?.addEventListener('click', async function() {
-        const btn = this;
-        const newPassword = document.getElementById('settingsNewPassword').value;
-        const confirmPassword = document.getElementById('settingsConfirmPassword').value;
-        const errorEl = document.getElementById('settingsError');
-
-        if (!newPassword || !confirmPassword) {
-            errorEl.textContent = 'Please enter and confirm your new password.';
-            return;
-        }
-        if (newPassword !== confirmPassword) {
-            errorEl.textContent = 'Passwords do not match.';
-            return;
-        }
-        if (newPassword.length < 6) {
-            errorEl.textContent = 'Password must be at least 6 characters.';
-            return;
-        }
-
-        errorEl.textContent = '';
-        btn.querySelector('.btn-text').style.display = 'none';
-        btn.querySelector('.btn-loader').style.display = 'inline';
-        btn.disabled = true;
-
-        try {
-            const result = await changeUserPassword(window._sessionEmail, newPassword);
-            if (result && result.success) {
-                showToast('Password updated successfully!', 'success');
-                closeSettingsModal();
-                // Update session
-                const session = JSON.parse(localStorage.getItem('cadence-session') || '{}');
-                session.isDefaultPassword = false;
-                localStorage.setItem('cadence-session', JSON.stringify(session));
-                window._session = session;
-            } else {
-                errorEl.textContent = (result && result.error) || 'Failed to update password.';
-            }
-        } catch (err) {
-            errorEl.textContent = err.message || 'Error updating password.';
-        } finally {
-            btn.querySelector('.btn-text').style.display = 'inline';
-            btn.querySelector('.btn-loader').style.display = 'none';
-            btn.disabled = false;
-        }
+        window.location.href = 'settings.html';
     });
 
     // Settings: logout
-    document.getElementById('settingsLogoutBtn')?.addEventListener('click', () => {
-        localStorage.removeItem('cadence-session');
-        window.location.href = 'login.html';
-    });
     document.getElementById('dropdownLogout')?.addEventListener('click', () => {
         localStorage.removeItem('cadence-session');
         window.location.href = 'login.html';
     });
-
-    // Password strength helper
-    function getPasswordStrength(password) {
-        let score = 1;
-        if (password.length >= 6) score = 2;
-        if (password.length >= 8 && /[A-Z]/.test(password) && /[a-z]/.test(password)) score = 3;
-        if (password.length >= 10 && /[0-9]/.test(password) && /[^A-Za-z0-9]/.test(password)) score = 4;
-        const labels = { 1: 'Weak', 2: 'Fair', 3: 'Good', 4: 'Strong' };
-        return { score, label: labels[score] || 'Weak' };
-    }
 
     // =============================================
     // 11. EVENT LISTENERS
@@ -1238,6 +1221,12 @@ async function initDashboard() {
     // Chart period
     document.getElementById('chartPeriod')?.addEventListener('change', (e) => {
         showToast(`Chart updated to ${e.target.value} view`, 'info');
+        updateOverviewChart();
+    });
+
+    // Chart form-type (Both / Audits / 1-1)
+    document.getElementById('chartType')?.addEventListener('change', () => {
+        updateOverviewChart();
     });
 
     // Fullscreen
@@ -1294,7 +1283,6 @@ async function initDashboard() {
     populateCenterFilter('', '', '');
     populateCLFilter('', '', '', '');
     initChart();
-    initOverviewUserSelect();
     applyRoleRestrictions();
     updateDashboard();
 
@@ -1318,103 +1306,7 @@ async function initDashboard() {
         }
     });
 
-    // ========== FORCED PASSWORD CHANGE (DEFAULT PASSWORD) ==========
-    if (session.isDefaultPassword) {
-        setTimeout(() => showForcePasswordModal(), 1500);
-    }
-
-    function showForcePasswordModal() {
-        const modal = document.getElementById('forcePasswordModal');
-        if (!modal) return;
-        modal.style.display = 'flex';
-        // Force reflow then add active class so opacity transitions to 1
-        void modal.offsetHeight;
-        modal.classList.add('active');
-
-        // Strength checker
-        document.getElementById('forceNewPassword')?.addEventListener('input', () => {
-            const val = document.getElementById('forceNewPassword').value;
-            let score = 0;
-            if (val.length >= 8) score++;
-            if (/[A-Z]/.test(val)) score++;
-            if (/[a-z]/.test(val)) score++;
-            if (/[0-9]/.test(val)) score++;
-            if (/[^A-Za-z0-9]/.test(val)) score++;
-            const levels = [
-                { width: '0%', color: 'transparent', label: '' },
-                { width: '20%', color: '#ef4444', label: 'Weak' },
-                { width: '40%', color: '#f97316', label: 'Fair' },
-                { width: '60%', color: '#eab308', label: 'Good' },
-                { width: '80%', color: '#22c55e', label: 'Strong' },
-                { width: '100%', color: '#22c55e', label: 'Very Strong' }
-            ];
-            const level = levels[score] || levels[0];
-            document.getElementById('forceStrengthFill').style.width = level.width;
-            document.getElementById('forceStrengthFill').style.background = level.color;
-            document.getElementById('forceStrengthText').textContent = level.label;
-            document.getElementById('forceStrengthText').style.color = level.color;
-        });
-
-        // Confirm match
-        document.getElementById('forceConfirmPassword')?.addEventListener('input', () => {
-            const val = document.getElementById('forceConfirmPassword').value;
-            const newPw = document.getElementById('forceNewPassword').value;
-            const status = document.getElementById('forceConfirmStatus');
-            if (!val) { status.className = 'input-status'; status.innerHTML = ''; return; }
-            if (val === newPw) {
-                status.className = 'input-status valid';
-                status.innerHTML = '<i class="fas fa-check-circle" style="color: #22c55e;"></i>';
-            } else {
-                status.className = 'input-status invalid';
-                status.innerHTML = '<i class="fas fa-times-circle" style="color: #ef4444;"></i>';
-            }
-        });
-
-        // Change password button
-        document.getElementById('forceChangeBtn')?.addEventListener('click', async () => {
-            const newPw = document.getElementById('forceNewPassword').value;
-            const confirmPw = document.getElementById('forceConfirmPassword').value;
-            const error = document.getElementById('forceError');
-            const btn = document.getElementById('forceChangeBtn');
-
-            error.textContent = '';
-            if (newPw.length < 8) { error.textContent = 'Password must be at least 8 characters'; return; }
-            if (newPw === 'Acer@1234') { error.textContent = 'Please choose a different password from the default'; return; }
-            if (newPw !== confirmPw) { error.textContent = 'Passwords do not match'; return; }
-
-            btn.querySelector('.btn-text').style.display = 'none';
-            btn.querySelector('.btn-loader').style.display = 'inline';
-            btn.disabled = true;
-
-            try {
-                const result = await changeUserPassword(session.email, newPw);
-                if (!result.success) {
-                    error.textContent = result.error;
-                    btn.querySelector('.btn-text').style.display = '';
-                    btn.querySelector('.btn-loader').style.display = 'none';
-                    btn.disabled = false;
-                    return;
-                }
-
-                session.isDefaultPassword = false;
-                localStorage.setItem('cadence-session', JSON.stringify(session));
-                modal.style.display = 'none';
-                showToast('Password updated successfully! Welcome to CADENCE.', 'success');
-            } catch (err) {
-                error.textContent = 'Failed to update password';
-            }
-
-            btn.querySelector('.btn-text').style.display = '';
-            btn.querySelector('.btn-loader').style.display = 'none';
-            btn.disabled = false;
-        });
-
-        // Skip button
-        document.getElementById('forceSkipBtn')?.addEventListener('click', () => {
-            modal.style.display = 'none';
-            showToast('Remember to change your password from Settings.', 'info');
-        });
-    }
+    function showForcePasswordModal() {} // (removed — no forced password-change nagging)
 
     console.log('%c CADENCE Report Dashboard Loaded ', 'background: linear-gradient(135deg, #3b82f6, #a855f7); color: white; padding: 8px 16px; border-radius: 6px; font-weight: bold; font-size: 14px;');
 
@@ -1699,6 +1591,24 @@ let _chartAudit = null, _chartMeeting = null;
 let _overviewFormRows = [];
 let _overviewRoleMap = {};
 
+// Per-person form fill counts: email -> { total, audits, meetings }
+let _formCountByEmail = {};
+
+function buildFormCountMap(rows) {
+    const map = {};
+    (rows || []).forEach(r => {
+        const email = (r['Submitted By'] || '').toLowerCase().trim();
+        if (!email) return;
+        const type = r['Form Type'] || '';
+        if (!map[email]) map[email] = { total: 0, audits: 0, meetings: 0 };
+        map[email].total++;
+        if (type === 'Audits') map[email].audits++;
+        else map[email].meetings++;
+    });
+    _formCountByEmail = map;
+    return map;
+}
+
 function initRecentAndCharts(formRows, roleMap) {
     if (window.__recentChartsDone) return;
     window.__recentChartsDone = true;
@@ -1711,8 +1621,17 @@ function initRecentAndCharts(formRows, roleMap) {
         _overviewRoleMap[session.email] = session.role || 'CL';
     }
 
+    // Per-person form counts for the Team Performance tree
+    buildFormCountMap(_overviewFormRows);
+
     // Recent Activity (filtered by visible users)
     loadRecentActivity(_overviewFormRows, _overviewRoleMap);
+
+    // Cadence Overview 3-line chart (region total / me / selected person)
+    updateOverviewChart();
+
+    // Re-render team tree now that form counts are available
+    if (window.refreshTeamList) window.refreshTeamList();
 }
 
 // ============ RECENT ACTIVITY ============
@@ -1778,5 +1697,187 @@ function getTimeAgo(date) {
     if (hrs < 24) return hrs + 'h ago';
     const days = Math.floor(hrs / 24);
     return days + 'd ago';
+}
+
+// ===============================================
+// CADENCE OVERVIEW — 3-line chart
+//   1) Region Total (all Audits + 1-1 forms in the selected region)
+//   2) Me (logged-in user's forms in that region)
+//   3) Selected BH/RCL/CL (forms by the person chosen in filters)
+// ===============================================
+
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function getPeriodBuckets(period) {
+    const now = new Date();
+    const starts = [];
+    const labels = [];
+
+    if (period === 'weekly') {
+        // Last 8 weeks, weeks starting Monday
+        const dow = (now.getDay() + 6) % 7;
+        const monday = new Date(now);
+        monday.setDate(now.getDate() - dow);
+        for (let i = 7; i >= 0; i--) {
+            const s = new Date(monday);
+            s.setDate(monday.getDate() - i * 7);
+            starts.push(+s);
+            labels.push(s.getDate() + ' ' + MONTH_NAMES[s.getMonth()]);
+        }
+    } else if (period === 'quarterly') {
+        // Last 4 quarters
+        const curQ = Math.floor(now.getMonth() / 3);
+        for (let i = 3; i >= 0; i--) {
+            const qIdx = curQ - i;
+            const y = now.getFullYear() + Math.floor(qIdx / 4);
+            const mm = (((qIdx % 4) + 4) % 4) * 3;
+            starts.push(+new Date(y, mm, 1));
+            labels.push('Q' + (mm / 3 + 1) + ' ' + String(y).slice(2));
+        }
+    } else {
+        // Last 12 months
+        for (let i = 11; i >= 0; i--) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            starts.push(+d);
+            labels.push(MONTH_NAMES[d.getMonth()]);
+        }
+    }
+    return { labels, starts };
+}
+
+function bucketIndex(dateMs, starts) {
+    for (let i = starts.length - 1; i >= 0; i--) {
+        if (dateMs >= starts[i]) return i;
+    }
+    return -1; // older than the visible range
+}
+
+function emailToName(email) {
+    if (!email) return '';
+    return email.split('@')[0]
+        .replace(/[._]/g, ' ')
+        .split(' ')
+        .filter(Boolean)
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ');
+}
+
+async function updateOverviewChart() {
+    const chart = window.cadenceChart;
+    if (!chart) return;
+
+    // 1) Get form responses (cached from summary load, else fetch)
+    let rows = _overviewFormRows;
+    if (!rows || rows.length === 0) {
+        try {
+            const resp = await fetch(SUMMARY_CONFIG.WEBAPP_URL + '?action=responses', { method: 'GET', mode: 'cors' });
+            if (resp.ok) {
+                const result = await resp.json();
+                if (result.success) {
+                    rows = result.data || [];
+                    _overviewFormRows = rows;
+                    buildFormCountMap(rows);
+                    if (window.refreshTeamList) window.refreshTeamList();
+                }
+            }
+        } catch (e) {
+            console.error('Overview chart data error:', e);
+        }
+    }
+
+    // 2) Context: session user, selected region, selected person
+    const session = JSON.parse(localStorage.getItem('cadence-session') || '{}');
+    const meEmail = (session.email || '').toLowerCase().trim();
+
+    const bhVal = (document.getElementById('filterBH')?.value || '').toLowerCase().trim();
+    const rclVal = (document.getElementById('filterRCL')?.value || '').toLowerCase().trim();
+    const clVal = (document.getElementById('filterCL')?.value || '').toLowerCase().trim();
+    const personEmail = clVal || rclVal || bhVal;
+
+    const regionSel = (document.getElementById('filterRegion')?.value || '').trim();
+    const regionName = regionSel ? ((window._regionById || {})[regionSel] || '') : '';
+
+    const period = document.getElementById('chartPeriod')?.value || 'monthly';
+    const chartType = document.getElementById('chartType')?.value || 'both';
+    const { labels, starts } = getPeriodBuckets(period);
+    const auditsArr = new Array(labels.length).fill(0);
+    const meetingsArr = new Array(labels.length).fill(0);
+    const mineAArr = new Array(labels.length).fill(0);
+    const mineMArr = new Array(labels.length).fill(0);
+    const personAArr = new Array(labels.length).fill(0);
+    const personMArr = new Array(labels.length).fill(0);
+
+    // 3) Aggregate rows into buckets — Audits and 1-1 & Training counted separately
+    (rows || []).forEach(row => {
+        const formType = row['Form Type'] || '';
+        let dateStr = '';
+        let rowRegion = '';
+        if (formType === 'Audits') {
+            dateStr = row['Audit Date'] || '';
+            rowRegion = (row['Region (Audit)'] || '').toLowerCase().trim();
+        } else if (formType === '1-1 & Training') {
+            dateStr = row['Meeting Date'] || '';
+            rowRegion = (row['Region (1-1)'] || '').toLowerCase().trim();
+        } else {
+            return;
+        }
+
+        const d = parseDateFlexible(dateStr);
+        if (!d) return;
+        const idx = bucketIndex(+d, starts);
+        if (idx < 0) return;
+
+        // Region constraint applies to all lines.
+        // Form data is inconsistent ("Delhi+HR" vs "Delhi + HR"), so match ignoring whitespace.
+        if (regionName && rowRegion.replace(/\s+/g, '') !== regionName.toLowerCase().replace(/\s+/g, '')) return;
+
+        const subEmail = (row['Submitted By'] || '').toLowerCase().trim();
+        const isAudit = formType === 'Audits';
+
+        if (isAudit) auditsArr[idx]++;
+        else meetingsArr[idx]++;
+
+        if (meEmail && subEmail === meEmail) {
+            if (isAudit) mineAArr[idx]++; else mineMArr[idx]++;
+        }
+        if (personEmail && subEmail === personEmail) {
+            if (isAudit) personAArr[idx]++; else personMArr[idx]++;
+        }
+    });
+
+    // 4) Update chart — datasets: [0] Region Audits, [1] Region 1-1, [2] Me, [3] Selected
+    const dsAudits = chart.data.datasets[0];
+    const dsMeetings = chart.data.datasets[1];
+    const dsMe = chart.data.datasets[2];
+    const dsPerson = chart.data.datasets[3];
+
+    chart.data.labels = labels;
+
+    if (chartType === 'audits') {
+        dsAudits.data = auditsArr;
+        dsMeetings.hidden = true;
+        dsMe.data = mineAArr;
+        dsPerson.data = personAArr;
+    } else if (chartType === 'meetings') {
+        dsAudits.hidden = true;
+        dsMeetings.data = meetingsArr;
+        dsMe.data = mineMArr;
+        dsPerson.data = personMArr;
+    } else {
+        dsAudits.data = auditsArr;
+        dsMeetings.data = meetingsArr;
+        dsMe.data = mineAArr.map((v, i) => v + mineMArr[i]);
+        dsPerson.data = personAArr.map((v, i) => v + personMArr[i]);
+    }
+
+    dsAudits.hidden = chartType === 'meetings';
+    dsMeetings.hidden = chartType === 'audits';
+
+    dsPerson.hidden = !personEmail;
+    dsPerson.label = personEmail
+        ? emailToName(personEmail) + ' (Selected)'
+        : 'Selected BH/RCL/CL';
+
+    chart.update('active');
 }
 

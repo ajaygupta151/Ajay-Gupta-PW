@@ -1,6 +1,6 @@
 /* ============================================
    CADENCE LOGIN - Authentication Logic
-   Dynamic sheet-based auth + OTP + Password Reset
+   Dynamic sheet-based auth + https://script.google.com/macros/s/AKfycbxY5MMBvozaZFml959E9INGtwLb6Uv0DAjjU-pSF-88cXE1Ob5Ykrq-_UvCzi5P9pchKQ/exec + Password Reset
    ============================================ */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -77,7 +77,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     setupTogglePassword('togglePassword', 'loginPassword');
     setupTogglePassword('toggleNewPassword', 'newPassword');
-    setupTogglePassword('toggleRegPassword', 'regPassword');
 
     // ========== LOGIN FORM ==========
     document.getElementById('loginForm')?.addEventListener('submit', async (e) => {
@@ -148,18 +147,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             showToast(`Welcome back, ${user.name}!`, 'success');
 
-            // Check if user needs to change password
-            if (user.isDefaultPassword) {
-                setTimeout(() => {
-                    showToast('Please change your default password', 'info');
-                    // Could redirect to password change page
-                    window.location.href = 'index.html';
-                }, 800);
-            } else {
-                setTimeout(() => {
-                    window.location.href = 'index.html';
-                }, 800);
-            }
+            // Go to dashboard (no forced password-change nagging)
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 800);
         } catch (error) {
             console.error('Login error:', error);
             passwordError.textContent = 'Login failed. Please try again.';
@@ -240,10 +231,16 @@ document.addEventListener('DOMContentLoaded', () => {
             generatedOtp = generateOTP();
 
             document.getElementById('otpEmailDisplay').textContent = email;
-            document.getElementById('generatedOtp').textContent = generatedOtp;
 
-            // Send OTP (simulated)
-            await sendOTP(email, generatedOtp);
+            // Send OTP by email (Apps Script / EmailJS in production)
+            const sendResult = await sendOTP(email, generatedOtp);
+            if (!sendResult.success) {
+                error.textContent = sendResult.error || 'Failed to send OTP. Please try again.';
+                btn.querySelector('.btn-text').style.display = '';
+                btn.querySelector('.btn-loader').style.display = 'none';
+                btn.disabled = false;
+                return;
+            }
 
             showCard('otpCard');
             startOtpTimer();
@@ -260,12 +257,6 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.querySelector('.btn-loader').style.display = 'none';
             btn.disabled = false;
         }
-    });
-
-    // Copy OTP
-    document.getElementById('copyOtp')?.addEventListener('click', () => {
-        navigator.clipboard?.writeText(generatedOtp);
-        showToast('OTP copied to clipboard!', 'success');
     });
 
     // ========== OTP INPUTS ==========
@@ -347,13 +338,12 @@ document.addEventListener('DOMContentLoaded', () => {
         showCard('forgotCard');
     });
 
-    document.getElementById('resendOtp')?.addEventListener('click', (e) => {
+    document.getElementById('resendOtp')?.addEventListener('click', async (e) => {
         e.preventDefault();
         generatedOtp = generateOTP();
-        document.getElementById('generatedOtp').textContent = generatedOtp;
-        sendOTP(currentResetEmail, generatedOtp);
+        await sendOTP(currentResetEmail, generatedOtp);
         startOtpTimer();
-        showToast('New OTP sent!', 'success');
+        showToast('New OTP sent to your email!', 'success');
     });
 
     // OTP Timer
@@ -520,82 +510,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('newPassword').value = '';
         document.getElementById('confirmPassword').value = '';
         otpInputs.forEach(i => { i.value = ''; i.classList.remove('filled'); });
-    });
-
-    // ========== REGISTER ==========
-    document.getElementById('showRegister')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        showCard('registerCard');
-    });
-
-    document.getElementById('backToLoginFromRegister')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        showCard('loginCard');
-    });
-
-    document.getElementById('registerForm')?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const firstName = document.getElementById('regFirstName').value.trim();
-        const lastName = document.getElementById('regLastName').value.trim();
-        const email = document.getElementById('regEmail').value.trim();
-        const role = document.getElementById('regRole').value;
-        const password = document.getElementById('regPassword').value;
-        const btn = document.getElementById('registerBtn');
-
-        if (!firstName || !lastName || !email || !role || !password) {
-            showToast('Please fill in all fields', 'error');
-            return;
-        }
-
-        // Check if user already exists
-        const existingUser = await getUserByEmail(email);
-        if (existingUser) {
-            showToast('An account with this email already exists', 'error');
-            return;
-        }
-
-        btn.querySelector('.btn-text').style.display = 'none';
-        btn.querySelector('.btn-loader').style.display = 'inline';
-        btn.disabled = true;
-
-        setTimeout(() => {
-            // In production, this would be a server call
-            // For demo, we'll add to localStorage
-            const users = JSON.parse(localStorage.getItem('cadence-users') || '{}');
-            users[email.toLowerCase()] = {
-                password: password,
-                name: `${firstName} ${lastName}`,
-                role: role,
-                region: null,
-                vertical: null,
-                center: null,
-                rcl: null,
-                bh: null,
-                rbh: null,
-                isDefaultPassword: false,
-                createdAt: new Date().toISOString()
-            };
-            localStorage.setItem('cadence-users', JSON.stringify(users));
-
-            showCard('successCard');
-            document.getElementById('successTitle').textContent = 'Account Created!';
-            document.getElementById('successMessage').textContent = `Your ${ROLE_LABELS[role]} account has been created. You can now sign in.`;
-
-            btn.querySelector('.btn-text').style.display = '';
-            btn.querySelector('.btn-loader').style.display = 'none';
-            btn.disabled = false;
-
-            showToast('Account created successfully!', 'success');
-        }, 1500);
-    });
-
-    // ========== SOCIAL LOGIN (SIMULATED) ==========
-    document.getElementById('googleLogin')?.addEventListener('click', () => {
-        showToast('Google Sign-In coming soon!', 'info');
-    });
-
-    document.getElementById('microsoftLogin')?.addEventListener('click', () => {
-        showToast('Microsoft Sign-In coming soon!', 'info');
     });
 
     // ========== KEYBOARD SHORTCUT ==========

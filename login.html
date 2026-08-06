@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CADENCE - Login</title>
+    <title>Physics Wallah Vidyapeeth - Cadence Login</title>
     <link rel="stylesheet" href="login.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -28,10 +28,10 @@
         <div class="auth-brand">
             <div class="brand-content">
                 <div class="brand-logo">
-                    <i class="fas fa-chart-line"></i>
-                    <span>CADENCE</span>
+                    <img class="pw-logo-img" src="assets/pw-logo.svg" alt="Physics Wallah" width="46" height="46">
+                    <span>PHYSICS WALLAH <em style="font-style:normal;font-size:0.7em;letter-spacing:2px;background:var(--brand-gradient-text);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">VIDYAPEETH</em></span>
                 </div>
-                <h1>Welcome to<br><span class="gradient-text">CADENCE Report</span></h1>
+                <h1>Welcome to<br><span class="gradient-text">Cadence Report</span></h1>
                 <p>Your centralized dashboard for tracking, analyzing, and reporting cadence data across all your centers and regions.</p>
                 <div class="brand-features">
                     <div class="feature-item">
@@ -106,33 +106,8 @@
                             <span class="btn-loader" style="display:none;"><i class="fas fa-spinner fa-spin"></i></span>
                         </button>
                     </form>
-                    <div class="auth-divider">
-                        <span>or continue with</span>
-                    </div>
-                    <div class="social-logins">
-                        <button class="social-btn" id="googleLogin">
-                            <i class="fab fa-google"></i>
-                            <span>Google</span>
-                        </button>
-                        <button class="social-btn" id="microsoftLogin">
-                            <i class="fab fa-microsoft"></i>
-                            <span>Microsoft</span>
-                        </button>
-                    </div>
                     <div class="auth-switch">
-                        Don't have an account? <a href="#" id="showRegister">Create Account</a>
-                    </div>
-
-                    <!-- Demo Credentials Info -->
-                    <div class="demo-info">
-                        <div class="demo-header"><i class="fas fa-info-circle"></i> Demo Credentials</div>
-                        <div class="demo-creds">
-                            <div class="demo-item"><strong>Admin:</strong> admin@cadence.com / admin123</div>
-                            <div class="demo-item"><strong>RBH:</strong> rajesh@cadence.com / rbh123</div>
-                            <div class="demo-item"><strong>RCL:</strong> amit@cadence.com / rcl123</div>
-                            <div class="demo-item"><strong>BH:</strong> manoj@cadence.com / bh123</div>
-                            <div class="demo-item"><strong>CL:</strong> vikram@cadence.com / cl123</div>
-                        </div>
+                        New user? Contact your administrator for access credentials.
                     </div>
                 </div>
 
@@ -166,10 +141,9 @@
                         <h2>Verify OTP</h2>
                         <p>We've sent a 6-digit code to <strong id="otpEmailDisplay"></strong></p>
                     </div>
-                    <div class="otp-display" id="otpDisplay">
-                        <i class="fas fa-key"></i>
-                        <span>Your OTP: <strong id="generatedOtp"></strong></span>
-                        <button type="button" class="copy-otp" id="copyOtp"><i class="fas fa-copy"></i></button>
+                    <div class="otp-note" id="otpNote" style="display:none;">
+                        <i class="fas fa-envelope-open-text"></i>
+                        <span>Check your inbox for the OTP. If not found, check Spam/Promotions.</span>
                     </div>
                     <form class="auth-form" id="otpForm">
                         <div class="otp-inputs" id="otpInputs">
@@ -249,68 +223,6 @@
                             <span>Continue to Sign In</span>
                         </button>
                     </div>
-                </div>
-
-                <!-- ===== REGISTER CARD ===== -->
-                <div class="auth-card" id="registerCard" style="display:none;">
-                    <div class="auth-card-header">
-                        <a href="#" class="back-link" id="backToLoginFromRegister"><i class="fas fa-arrow-left"></i> Back to Login</a>
-                        <h2>Create Account</h2>
-                        <p>Fill in the details to create your account</p>
-                    </div>
-                    <form class="auth-form" id="registerForm">
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="regFirstName">First Name</label>
-                                <div class="input-wrapper">
-                                    <i class="fas fa-user"></i>
-                                    <input type="text" id="regFirstName" placeholder="First name" required>
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label for="regLastName">Last Name</label>
-                                <div class="input-wrapper">
-                                    <i class="fas fa-user"></i>
-                                    <input type="text" id="regLastName" placeholder="Last name" required>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label for="regEmail">Email Address</label>
-                            <div class="input-wrapper">
-                                <i class="fas fa-envelope"></i>
-                                <input type="email" id="regEmail" placeholder="name@company.com" required>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label for="regRole">Role</label>
-                            <div class="input-wrapper">
-                                <i class="fas fa-user-tag"></i>
-                                <select id="regRole" required>
-                                    <option value="">Select your role</option>
-                                    <option value="admin">Administrator</option>
-                                    <option value="rbh">Regional Branch Head (RBH)</option>
-                                    <option value="rcl">Regional Center Lead (RCL)</option>
-                                    <option value="bh">Branch Head (BH)</option>
-                                    <option value="cl">Center Lead (CL)</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label for="regPassword">Password</label>
-                            <div class="input-wrapper">
-                                <i class="fas fa-lock"></i>
-                                <input type="password" id="regPassword" placeholder="Create a password" required>
-                                <button type="button" class="toggle-password" id="toggleRegPassword">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <button type="submit" class="btn-auth btn-primary-auth" id="registerBtn">
-                            <span class="btn-text">Create Account</span>
-                            <span class="btn-loader" style="display:none;"><i class="fas fa-spinner fa-spin"></i></span>
-                        </button>
-                    </form>
                 </div>
 
             </div>

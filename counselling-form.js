@@ -72,7 +72,7 @@ async function initForm() {
         prefillUserData();
 
         // Enable submit button
-        const submitBtn = document.getElementById('counselSubmitBtn');
+        const submitBtn = document.getElementById('counselSubmitBtn') || document.getElementById('submitBtn');
         if (submitBtn) submitBtn.disabled = false;
 
         // Select default form type
@@ -154,6 +154,39 @@ function buildFormOrgData(rows) {
         ensureUser(rclEmail, 'rcl');
         ensureUser(rbhEmail, 'rbh');
     });
+
+    // ---- ADMIN OVERRIDE ----
+    // employee_type = ADMIN in the sheet OR email in ADMIN_EMAILS -> role 'admin'
+    rows.forEach(row => {
+        const email = row.mail_id ? row.mail_id.toLowerCase().trim() : '';
+        if (email && users[email] && (row.employee_type || '').toUpperCase() === 'ADMIN') {
+            users[email].role = 'admin';
+        }
+    });
+    if (typeof ADMIN_EMAILS !== 'undefined') {
+        ADMIN_EMAILS.forEach(email => {
+            const normalized = email.toLowerCase().trim();
+            if (!normalized) return;
+            if (!users[normalized]) {
+                const name = normalized.split('@')[0]
+                    .replace(/[._]/g, ' ')
+                    .split(' ')
+                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join(' ');
+                users[normalized] = {
+                    email: normalized,
+                    role: 'admin',
+                    region: '',
+                    center: '',
+                    rcl: '',
+                    bh: '',
+                    rbh: ''
+                };
+            } else {
+                users[normalized].role = 'admin';
+            }
+        });
+    }
 
     // Third pass: track center ownership
     rows.forEach(row => {
@@ -431,7 +464,10 @@ function collectForm11() {
     if (!center) { showToast('Please select Center.', 'error'); return null; }
     if (!date) { showToast('Please select Meeting Date.', 'error'); return null; }
     if (!type) { showToast('Please select Meeting Type.', 'error'); return null; }
+    if (!attendees) { showToast('Please enter Meeting Attendees (email IDs).', 'error'); return null; }
+    if (!isValidEmailList(attendees)) { showToast('Please enter valid comma-separated email IDs in Meeting Attendees.', 'error'); return null; }
     if (!summary) { showToast('Please enter Discussion Summary / MOM.', 'error'); return null; }
+    if (!recording) { showToast('Please enter the Meeting Recording Link.', 'error'); return null; }
 
     const regionName = orgData.regions.find(r => r.id === region)?.name || region;
 
@@ -463,7 +499,9 @@ function collectFormAudit() {
     if (!region) { showToast('Please select Region.', 'error'); return null; }
     if (!center) { showToast('Please select Center.', 'error'); return null; }
     if (!date) { showToast('Please select Audit Date.', 'error'); return null; }
+    if (!leadLink) { showToast('Please enter the Lead Link.', 'error'); return null; }
     if (!counsellor) { showToast('Please enter Counsellor Email.', 'error'); return null; }
+    if (!isValidEmailList(counsellor)) { showToast('Please enter a valid Counsellor Email ID.', 'error'); return null; }
     if (!remarks) { showToast('Please enter Audit Remarks.', 'error'); return null; }
     if (!score) { showToast('Please select Audit Score.', 'error'); return null; }
 
@@ -481,6 +519,15 @@ function collectFormAudit() {
         submittedBy: session.email,
         submittedAt: new Date().toISOString()
     };
+}
+
+// ============ EMAIL LIST VALIDATION ============
+function isValidEmailList(str) {
+    if (!str || !str.trim()) return false;
+    const emails = str.split(',').map(e => e.trim()).filter(Boolean);
+    if (emails.length === 0) return false;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emails.every(e => emailRegex.test(e));
 }
 
 // ============ SEND FORM DATA ============

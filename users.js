@@ -7,14 +7,49 @@
 const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQhEE5FyHnRTYqr6UDh8vGyW6sxal-nEAg2ZfhCH_VtrWIQ0OsO9I2pJa92sduhUJ9R1wV_MJF4Y-oN/pub?output=csv';
 const DEFAULT_PASSWORD = 'Acer@1234';
 
+// ============================================
+// SHEET 2 — ROLES & PASSWORDS (source of truth)
+// --------------------------------------------
+// The hierarchy/roles sheet ("Sheet2" tab) of the login spreadsheet.
+// Every id whose role column says "admin" (any case) gets full admin access.
+// Columns: mail_id, role, role_label, password
+// ============================================
+const SHEET2_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQhEE5FyHnRTYqr6UDh8vGyW6sxal-nEAg2ZfhCH_VtrWIQ0OsO9I2pJa92sduhUJ9R1wV_MJF4Y-oN/pub?gid=1181913691&single=true&output=csv';
+
+// ============================================
+// ADMIN ACCESS CONFIGURATION
+// --------------------------------------------
+// Admin IDs get FULL access: all regions, all
+// RBHs, all centers — overall visibility.
+//
+// Two ways to make a user Admin:
+//   1. Add their email to ADMIN_EMAILS below, OR
+//   2. Set employee_type = "ADMIN" for that row
+//      in the Google Sheet.
+// ============================================
+const ADMIN_EMAILS = [
+    // 'admin@pw.live',
+    // 'virender.singh@pw.live',
+];
+
 // Role hierarchy mapping
 const ROLE_MAP = {
     'CL': 'cl',      // Center Lead
     'CM': 'cl',      // Center Manager -> mapped to CL
     'RCL': 'rcl',    // Regional Center Lead
     'BH': 'bh',      // Branch Head
-    'RBH': 'rbh'     // Regional Branch Head
+    'RBH': 'rbh',    // Regional Branch Head
+    'ADMIN': 'admin' // Administrator (full access)
 };
+
+/**
+ * Check if an email should be treated as Admin
+ */
+function isAdminEmail(email) {
+    if (!email) return false;
+    const normalized = email.toLowerCase().trim();
+    return ADMIN_EMAILS.map(e => e.toLowerCase().trim()).includes(normalized);
+}
 
 const ROLE_LABELS = {
     admin: 'Administrator',
@@ -28,6 +63,10 @@ const ROLE_LABELS = {
 let _sheetDataCache = null;
 let _sheetDataTimestamp = 0;
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+// Cache for Sheet2 (roles/passwords)
+let _sheet2DataCache = null;
+let _sheet2DataTimestamp = 0;
 
 /**
  * Fetch and parse CSV from Google Sheets
@@ -66,6 +105,43 @@ async function fetchSheetData() {
         
         throw error;
     }
+}
+
+/**
+ * Fetch Sheet2 (roles/passwords tab). Returns [] when not configured.
+ */
+async function fetchSheet2Data() {
+    if (!SHEET2_CSV_URL) return [];
+    const now = Date.now();
+    if (_sheet2DataCache && (now - _sheet2DataTimestamp) < CACHE_DURATION) {
+        return _sheet2DataCache;
+    }
+    try {
+        const response = await fetch(SHEET2_CSV_URL);
+        if (!response.ok) throw new Error('Failed to fetch sheet2');
+        const rows = parseCSV(await response.text());
+        _sheet2DataCache = rows;
+        _sheet2DataTimestamp = now;
+        return rows;
+    } catch (error) {
+        console.error('Sheet2 fetch error:', error);
+        const cached = localStorage.getItem('cadence-sheet2-data');
+        return cached ? JSON.parse(cached) : [];
+    }
+}
+
+/**
+ * Pick a cell from a row by any of the given header names (case-insensitive).
+ */
+function pickCol(row, names) {
+    if (!row) return '';
+    const lower = {};
+    for (const k of Object.keys(row)) lower[k.toLowerCase().trim()] = row[k];
+    for (const n of names) {
+        const v = lower[String(n).toLowerCase().trim()];
+        if (v !== undefined && v !== '') return v;
+    }
+    return '';
 }
 
 /**
@@ -242,6 +318,117 @@ async function buildUsersDatabase() {
             };
         }
     });
+
+    // ---- ADMIN OVERRIDE ----
+    // Emails listed in ADMIN_EMAILS get the 'admin' role (full access),
+    // regardless of what the sheet says. Create the entry if missing.
+    ADMIN_EMAILS.forEach(email => {
+        const normalized = email.toLowerCase().trim();
+        if (!normalized) return;
+        if (!users[normalized]) {
+            const name = normalized.split('@')[0]
+                .replace(/[._]/g, ' ')
+                .split(' ')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ');
+            users[normalized] = {
+                password: DEFAULT_PASSWORD,
+                name: name,
+                role: 'admin',
+                region: '',
+                vertical: '',
+                center: null,
+                rcl: null,
+                bh: null,
+                rbh: null,
+                isDefaultPassword: true,
+                createdAt: new Date().toISOString()
+            };
+        } else {
+            users[normalized].role = 'admin';
+        }
+    });
+
+    // ---- SHEET2 OVERRIDE (roles + passwords source of truth) ----
+    // The hierarchy sheet decides every role. Any id whose role column says
+    // "admin" (any case) gets full admin access — no hardcoded list.
+    let sheet2Rows = [];
+    try {
+        sheet2Rows = await fetchSheet2Data();
+    } catch (e) {
+        sheet2Rows = [];
+    }
+    if (sheet2Rows.length > 0) {
+        const knownRoles = ['admin', 'rbh', 'rcl', 'bh', 'cl'];
+        sheet2Rows.forEach(row => {
+            const email = pickCol(row, ['mail_id', 'mail id', 'mailid', 'email', 'email id']).toLowerCase().trim();
+            if (!email) return;
+            const roleVal = pickCol(row, ['role', 'employee_type', 'employee type', 'designation', 'user role']);
+            const passVal = pickCol(row, ['password', 'pass', 'pass word']);
+
+            if (!users[email]) {
+                const name = email.split('@')[0]
+                    .replace(/[._]/g, ' ')
+                    .split(' ')
+                    .filter(Boolean)
+                    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+                    .join(' ');
+                users[email] = {
+                    password: passVal || DEFAULT_PASSWORD,
+                    name: name,
+                    role: 'cl',
+                    region: '',
+                    vertical: '',
+                    center: null,
+                    rcl: null,
+                    bh: null,
+                    rbh: null,
+                    isDefaultPassword: true,
+                    createdAt: new Date().toISOString()
+                };
+            }
+
+            if (roleVal) {
+                const up = String(roleVal).toUpperCase().trim();
+                let newRole = ROLE_MAP[up] || String(roleVal).toLowerCase().trim();
+                if (!knownRoles.includes(newRole)) newRole = 'cl';
+                users[email].role = newRole;
+            }
+            if (passVal) users[email].password = passVal;
+        });
+
+        // ---- STRICT SHEET2 LOGIN ----
+        // ONLY the ids listed in Sheet2 can log in — their id + password from
+        // that sheet. Sheet1-only hierarchy ids (which would otherwise get the
+        // default password) are removed, so nobody logs in unless listed here.
+        const allowedEmails = new Set(
+            sheet2Rows
+                .map(row => pickCol(row, ['mail_id', 'mail id', 'mailid', 'email', 'email id']).toLowerCase().trim())
+                .filter(Boolean)
+        );
+        Object.keys(users).forEach(email => {
+            if (!allowedEmails.has(email)) delete users[email];
+        });
+    }
+
+    // ---- LOCALLY-CHANGED PASSWORDS ----
+    // Passwords changed via Settings/changeUserPassword are persisted in
+    // localStorage ('cadence-users'); apply them last so a manual password
+    // change always wins over the sheet value.
+    try {
+        const saved = localStorage.getItem('cadence-users');
+        if (saved) {
+            const savedUsers = JSON.parse(saved);
+            Object.keys(savedUsers).forEach(email => {
+                if (users[email] && savedUsers[email] && savedUsers[email].password) {
+                    users[email].password = savedUsers[email].password;
+                    users[email].isDefaultPassword = false;
+                }
+            });
+        }
+    } catch (e) {
+        console.warn('cadence-users override failed:', e);
+    }
     
     return users;
 }
@@ -344,6 +531,18 @@ async function getUserHierarchy(email) {
     return hierarchy;
 }
 
+// ============================================
+// OTP EMAIL — Apps Script Web App URL
+// --------------------------------------------
+// Deploy the included otp-mail.gs as a Google
+// Apps Script Web App ("Anyone" access), then
+// paste the /exec URL here:
+//   https://script.google.com/macros/s/XXXXX/exec
+// OTP mails are sent from the Apps Script
+// owner's Gmail account.
+// ============================================
+const OTP_MAIL_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwGaN9ljjI2mm3xcx3hQporN6cbZ7KqzBYUInrb9_2yaiIIKKFMIiuN6zYVhmk2Z_qBOw/exec'; // e.g. 'https://script.google.com/macros/s/XXXXX/exec'
+
 /**
  * Generate OTP for password reset
  */
@@ -352,22 +551,46 @@ function generateOTP() {
 }
 
 /**
- * Send OTP (simulated - in production, integrate with email service)
+ * Send OTP email to the user via Apps Script endpoint.
+ * Falls back to a console/dev hint when no endpoint is configured.
  */
-async function sendOTP(email, otp) {
-    // In production, this would send an actual email
-    // For demo, we'll store it and show it
+async function sendOTP(email, otp, purpose = 'password-reset') {
+    // Always store locally for verification
     localStorage.setItem('cadence-otp', JSON.stringify({
         email: email,
         otp: otp,
         timestamp: Date.now()
     }));
-    
+
+    if (OTP_MAIL_ENDPOINT) {
+        try {
+            const response = await fetch(OTP_MAIL_ENDPOINT, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({ action: 'send', email, otp, purpose })
+            });
+            // Apps Script web apps send Access-Control-Allow-Origin: *,
+            // so we can read the real response (no need for no-cors).
+            const data = await response.json().catch(() => ({}));
+            if (data.success === false) {
+                console.error('OTP email send failed:', data.message);
+                return { success: false, error: data.message || 'Could not send OTP email. Please try again.' };
+            }
+            return { success: true, message: `OTP sent to ${email}` };
+        } catch (error) {
+            console.error('OTP email send failed:', error);
+            return { success: false, error: 'Could not send OTP email. Please try again.' };
+        }
+    }
+
+    // No endpoint configured yet — show OTP in console for dev/testing only
+    console.warn('[CADENCE] OTP_MAIL_ENDPOINT not configured. OTP for ' + email + ':', otp);
     return { success: true, message: `OTP sent to ${email}` };
 }
 
 /**
- * Verify OTP
+ * Verify OTP (local check). On success, notifies the Apps Script
+ * endpoint so the OTP Log sheet row is marked VERIFIED.
  */
 function verifyOTP(email, enteredOTP) {
     const stored = JSON.parse(localStorage.getItem('cadence-otp') || '{}');
@@ -387,6 +610,15 @@ function verifyOTP(email, enteredOTP) {
     
     // Clear used OTP
     localStorage.removeItem('cadence-otp');
+
+    // Notify server so the OTP Log sheet row gets marked VERIFIED
+    if (OTP_MAIL_ENDPOINT) {
+        fetch(OTP_MAIL_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({ action: 'verify', email, otp: enteredOTP })
+        }).catch(() => {});
+    }
     
     return { success: true };
 }
@@ -396,6 +628,9 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         SHEET_CSV_URL,
         DEFAULT_PASSWORD,
+        ADMIN_EMAILS,
+        OTP_MAIL_ENDPOINT,
+        isAdminEmail,
         ROLE_MAP,
         ROLE_LABELS,
         fetchSheetData,

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CADENCE Report - Dashboard</title>
+    <title>Physics Wallah Vidyapeeth - Cadence Dashboard</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -12,18 +12,22 @@
 
     <!-- ========== MAIN CONTENT ========== -->
     <main class="main-content" id="mainContent">
+        
 
         <!-- TOP BAR -->
         <header class="topbar" id="topbar">
             <div class="topbar-left">
                 <div class="logo">
-                    <i class="fas fa-chart-line"></i>
-                    <span>CADENCE</span>
-                    
+                    <img class="pw-logo" src="assets/pw-logo.svg" alt="Physics Wallah" width="38" height="38">
+                    <span class="pw-brand-text">Physics Wallah<em>Vidyapeeth · Cadence</em></span>
                 </div>
             </div>
             <div class="topbar-right">
                 <div class="topbar-actions">
+                    <button class="action-btn btn-fill-form" id="fillFormBtn" title="Fill Counselling Form" onclick="window.toggleView()" style="width:auto;padding:0 16px;gap:8px;background:linear-gradient(135deg,var(--accent-blue),var(--accent-purple));color:#fff;border-radius:30px;">
+                        <i class="fas fa-clipboard-list"></i>
+                        <span style="font-size:0.8rem;font-weight:600;">Fill Form</span>
+                    </button>
                     <button class="action-btn" title="Refresh" id="refreshBtn">
                         <i class="fas fa-sync-alt"></i>
                     </button>
@@ -57,6 +61,9 @@
                 </div>
             </div>
         </header>
+
+        <!-- ===== TAB PANEL: SUMMARY (HOME) ===== -->
+        <div class="tab-panel active" id="tabSummary">
 
         <!-- FILTER SECTION -->
         <section class="filter-section" id="filterSection">
@@ -194,8 +201,10 @@
                 <div class="card-header">
                     <h2><i class="fas fa-chart-area"></i> Cadence Overview</h2>
                     <div class="card-actions" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                        <select id="overviewUserSelect" style="background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border-color);border-radius:6px;padding:4px 8px;font-size:0.78rem;min-width:160px;max-width:220px;">
-                            <option value="">— Loading —</option>
+                        <select id="chartType" class="period-select" title="Form type to show">
+                            <option value="both" selected>Both (Audits + 1-1)</option>
+                            <option value="audits">Audits Only</option>
+                            <option value="meetings">1-1 Meetings Only</option>
                         </select>
                         <select id="chartPeriod" class="period-select">
                             <option value="weekly">Weekly</option>
@@ -235,152 +244,7 @@
             </div>
         </section>
 
-        <!-- ========== COUNSELLING CADENCE SECTION ========== -->
-        <section class="dashboard-section" id="counsellingSection" style="padding:0 28px 28px;">
-            <div class="section-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
-                <div class="section-title" style="display:flex;align-items:center;gap:10px;">
-                    <i class="fas fa-clipboard-list" style="color:var(--accent-blue);font-size:1.2rem;"></i>
-                    <h2 style="font-size:1.1rem;font-weight:700;">Counselling Cadence</h2>
-                </div>
-                <div style="display:flex;gap:8px;align-items:center;">
-                    <span style="font-size:0.78rem;color:var(--text-muted);background:var(--bg-secondary);padding:4px 12px;border-radius:20px;">
-                        <i class="fas fa-user" style="margin-right:4px;"></i> <span id="formUserLabel">Loading...</span>
-                    </span>
-                </div>
-            </div>
-
-            <!-- Form Container -->
-            <div class="card" style="overflow:visible;">
-                <div class="card-body" style="padding:24px 28px;">
-
-                    <!-- ===== TYPE SELECTOR ===== -->
-                    <div class="form-type-selector" style="display:flex;gap:16px;margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--border-color);">
-                        <div class="form-type-option" data-type="1-1 & Training" onclick="window.selectFormType('1-1 & Training')" style="flex:1;padding:16px 20px;border:2px solid var(--border-color);border-radius:var(--radius-md);cursor:pointer;text-align:center;transition:var(--transition);background:var(--bg-primary);">
-                            <i class="fas fa-handshake" style="font-size:1.5rem;color:var(--accent-blue);margin-bottom:8px;display:block;"></i>
-                            <h3 style="font-size:0.95rem;font-weight:600;color:var(--text-primary);">1-1 &amp; Training</h3>
-                            <p style="font-size:0.78rem;color:var(--text-muted);margin-top:4px;">Record one-on-one sessions and team meetings</p>
-                        </div>
-                        <div class="form-type-option" data-type="Audits" onclick="window.selectFormType('Audits')" style="flex:1;padding:16px 20px;border:2px solid var(--border-color);border-radius:var(--radius-md);cursor:pointer;text-align:center;transition:var(--transition);background:var(--bg-primary);">
-                            <i class="fas fa-search" style="font-size:1.5rem;color:var(--accent-blue);margin-bottom:8px;display:block;"></i>
-                            <h3 style="font-size:0.95rem;font-weight:600;color:var(--text-primary);">Audits</h3>
-                            <p style="font-size:0.78rem;color:var(--text-muted);margin-top:4px;">Record audit details and scores</p>
-                        </div>
-                    </div>
-
-                    <!-- ===== 1-1 & TRAINING SECTION ===== -->
-                    <div class="form-section" id="section11">
-                        <form id="form11" onsubmit="return false;">
-                            <div class="form-grid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;">
-                                <div class="form-group" style="display:flex;flex-direction:column;gap:6px;">
-                                    <label style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><i class="fas fa-globe" style="color:var(--accent-blue);font-size:0.78rem;"></i> Region <span style="color:var(--accent-red);">*</span></label>
-                                    <select id="meetingRegion" required style="background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border-color);border-radius:var(--radius-sm);padding:10px 12px;font-size:0.85rem;">
-                                        <option value="">Select Region</option>
-                                    </select>
-                                </div>
-                                <div class="form-group" style="display:flex;flex-direction:column;gap:6px;">
-                                    <label style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><i class="fas fa-store" style="color:var(--accent-blue);font-size:0.78rem;"></i> Center <span style="color:var(--accent-red);">*</span></label>
-                                    <select id="meetingCenter" required style="background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border-color);border-radius:var(--radius-sm);padding:10px 12px;font-size:0.85rem;">
-                                        <option value="">Select Center</option>
-                                    </select>
-                                </div>
-                                <div class="form-group" style="display:flex;flex-direction:column;gap:6px;">
-                                    <label style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><i class="fas fa-calendar" style="color:var(--accent-blue);font-size:0.78rem;"></i> Meeting Date <span style="color:var(--accent-red);">*</span></label>
-                                    <input type="date" id="meetingDate" required style="background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border-color);border-radius:var(--radius-sm);padding:10px 12px;font-size:0.85rem;">
-                                </div>
-                                <div class="form-group" style="display:flex;flex-direction:column;gap:6px;">
-                                    <label style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><i class="fas fa-users" style="color:var(--accent-blue);font-size:0.78rem;"></i> Meeting Type <span style="color:var(--accent-red);">*</span></label>
-                                    <select id="meetingType" required style="background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border-color);border-radius:var(--radius-sm);padding:10px 12px;font-size:0.85rem;">
-                                        <option value="">Select Type</option>
-                                        <option value="One on One">One on One</option>
-                                        <option value="Team Meet">Team Meet</option>
-                                    </select>
-                                </div>
-                                <div class="form-group" style="display:flex;flex-direction:column;gap:6px;grid-column:1/-1;">
-                                    <label style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><i class="fas fa-envelope" style="color:var(--accent-blue);font-size:0.78rem;"></i> Meeting Attendees (Email IDs comma separated)</label>
-                                    <input type="text" id="meetingAttendees" placeholder="email1@pw.live, email2@pw.live" style="background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border-color);border-radius:var(--radius-sm);padding:10px 12px;font-size:0.85rem;">
-                                </div>
-                                <div class="form-group" style="display:flex;flex-direction:column;gap:6px;grid-column:1/-1;">
-                                    <label style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><i class="fas fa-file-alt" style="color:var(--accent-blue);font-size:0.78rem;"></i> Discussion Summary / MOM <span style="color:var(--accent-red);">*</span></label>
-                                    <textarea id="meetingSummary" placeholder="Enter meeting summary..." required style="background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border-color);border-radius:var(--radius-sm);padding:10px 12px;font-size:0.85rem;min-height:80px;resize:vertical;font-family:inherit;"></textarea>
-                                </div>
-                                <div class="form-group" style="display:flex;flex-direction:column;gap:6px;grid-column:1/-1;">
-                                    <label style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><i class="fas fa-link" style="color:var(--accent-blue);font-size:0.78rem;"></i> Recording Link</label>
-                                    <input type="url" id="meetingRecording" placeholder="https://drive.google.com/..." style="background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border-color);border-radius:var(--radius-sm);padding:10px 12px;font-size:0.85rem;">
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-
-                    <!-- ===== AUDITS SECTION ===== -->
-                    <div class="form-section" id="sectionAudit">
-                        <form id="formAudit" onsubmit="return false;">
-                            <div class="form-grid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;">
-                                <div class="form-group" style="display:flex;flex-direction:column;gap:6px;">
-                                    <label style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><i class="fas fa-globe" style="color:var(--accent-blue);font-size:0.78rem;"></i> Region <span style="color:var(--accent-red);">*</span></label>
-                                    <select id="auditRegion" required style="background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border-color);border-radius:var(--radius-sm);padding:10px 12px;font-size:0.85rem;">
-                                        <option value="">Select Region</option>
-                                    </select>
-                                </div>
-                                <div class="form-group" style="display:flex;flex-direction:column;gap:6px;">
-                                    <label style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><i class="fas fa-store" style="color:var(--accent-blue);font-size:0.78rem;"></i> Center <span style="color:var(--accent-red);">*</span></label>
-                                    <select id="auditCenter" required style="background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border-color);border-radius:var(--radius-sm);padding:10px 12px;font-size:0.85rem;">
-                                        <option value="">Select Center</option>
-                                    </select>
-                                </div>
-                                <div class="form-group" style="display:flex;flex-direction:column;gap:6px;">
-                                    <label style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><i class="fas fa-calendar" style="color:var(--accent-blue);font-size:0.78rem;"></i> Audit Date <span style="color:var(--accent-red);">*</span></label>
-                                    <input type="date" id="auditDate" required style="background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border-color);border-radius:var(--radius-sm);padding:10px 12px;font-size:0.85rem;">
-                                </div>
-                                <div class="form-group" style="display:flex;flex-direction:column;gap:6px;">
-                                    <label style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><i class="fas fa-link" style="color:var(--accent-blue);font-size:0.78rem;"></i> Lead Link</label>
-                                    <input type="url" id="auditLeadLink" placeholder="https://..." style="background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border-color);border-radius:var(--radius-sm);padding:10px 12px;font-size:0.85rem;">
-                                </div>
-                                <div class="form-group" style="display:flex;flex-direction:column;gap:6px;grid-column:1/-1;">
-                                    <label style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><i class="fas fa-envelope" style="color:var(--accent-blue);font-size:0.78rem;"></i> Counsellor Email ID <span style="color:var(--accent-red);">*</span></label>
-                                    <input type="email" id="auditCounsellor" required placeholder="counsellor@pw.live" style="background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border-color);border-radius:var(--radius-sm);padding:10px 12px;font-size:0.85rem;">
-                                </div>
-                                <div class="form-group" style="display:flex;flex-direction:column;gap:6px;grid-column:1/-1;">
-                                    <label style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><i class="fas fa-comment" style="color:var(--accent-blue);font-size:0.78rem;"></i> Audit Remarks (With Time Stamp) <span style="color:var(--accent-red);">*</span></label>
-                                    <textarea id="auditRemarks" placeholder="Enter audit remarks with timestamp..." required style="background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border-color);border-radius:var(--radius-sm);padding:10px 12px;font-size:0.85rem;min-height:80px;resize:vertical;font-family:inherit;"></textarea>
-                                </div>
-                                <div class="form-group" style="display:flex;flex-direction:column;gap:6px;">
-                                    <label style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><i class="fas fa-star" style="color:var(--accent-blue);font-size:0.78rem;"></i> Audit Score <span style="color:var(--accent-red);">*</span></label>
-                                    <select id="auditScore" required style="background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border-color);border-radius:var(--radius-sm);padding:10px 12px;font-size:0.85rem;">
-                                        <option value="">Select Score</option>
-                                        <option value="Good">Good</option>
-                                        <option value="Average">Average</option>
-                                        <option value="Below Average">Below Average</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-
-                    <!-- ===== FORM ACTIONS ===== -->
-                    <div class="form-actions" id="formActions" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border-color);display:flex;justify-content:flex-end;gap:12px;">
-                        <button class="btn btn-secondary" onclick="window.resetForm()" style="padding:10px 20px;font-size:0.85rem;">
-                            <i class="fas fa-undo"></i> Reset
-                        </button>
-                        <button class="btn btn-primary" id="counselSubmitBtn" onclick="window.submitForm()" disabled style="padding:10px 24px;font-size:0.85rem;">
-                            <span class="btn-text"><i class="fas fa-paper-plane"></i> Submit</span>
-                            <span class="btn-loader" style="display:none;"><i class="fas fa-spinner fa-spin"></i> Submitting...</span>
-                        </button>
-                    </div>
-
-                    <!-- ===== SUCCESS ===== -->
-                    <div class="submit-success" id="counselSuccess" style="display:none;text-align:center;padding:30px 20px;">
-                        <i class="fas fa-check-circle" style="font-size:3rem;color:#22c55e;margin-bottom:12px;display:block;"></i>
-                        <h3 style="font-size:1.2rem;color:var(--text-primary);margin-bottom:6px;">Response Submitted!</h3>
-                        <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:16px;">Thank you! Your counselling cadence response has been recorded.</p>
-                        <button class="btn btn-primary" onclick="window.resetForm()" style="margin:0 auto;padding:10px 24px;font-size:0.85rem;">
-                            <i class="fas fa-plus"></i> Submit Another Response
-                        </button>
-                    </div>
-
-                    <div id="counselFormError" style="display:none;color:var(--accent-red);font-size:0.8rem;text-align:center;margin-top:12px;"></div>
-                </div>
-            </div>
-        </section>
+        <!-- ===== COUNSELLING FORM — moved to its own tab (below) ===== -->
 
         <!-- ========== COUNSELLING SUMMARY SECTION ========== -->
         <section class="dashboard-section" id="counsellingSummary" style="padding:0 28px 28px;">
@@ -447,6 +311,159 @@
             </div>
         </section>
 
+        </div>
+        <!-- /tabSummary -->
+
+        <!-- ===== TAB PANEL: FORM ===== -->
+        <div class="tab-panel" id="tabForm">
+
+        <!-- ========== COUNSELLING CADENCE FORM ========== -->
+        <section class="dashboard-section form-wrap" id="counsellingForm">
+            <div class="section-head">
+                <div class="section-title">
+                    <div class="section-icon"><i class="fas fa-clipboard-list"></i></div>
+                    <div>
+                        <h2>Counselling Cadence</h2>
+                        <p>Record daily 1-1 &amp; Training sessions and Audits — all fields are mandatory</p>
+                    </div>
+                </div>
+                <span class="user-chip" id="formUserLabel">
+                    <i class="fas fa-user"></i> Loading...
+                </span>
+            </div>
+
+            <div class="form-card">
+                <!-- ===== TYPE SELECTOR ===== -->
+                <div class="form-type-selector">
+                    <div class="form-type-option" data-type="1-1 & Training" onclick="window.selectFormType('1-1 & Training')">
+                        <div class="fto-icon handshake"><i class="fas fa-handshake"></i></div>
+                        <h3>1-1 &amp; Training</h3>
+                        <p>Record one-on-one sessions and team meetings</p>
+                    </div>
+                    <div class="form-type-option" data-type="Audits" onclick="window.selectFormType('Audits')">
+                        <div class="fto-icon audits"><i class="fas fa-search"></i></div>
+                        <h3>Audits</h3>
+                        <p>Record audit details and scores</p>
+                    </div>
+                </div>
+
+                <!-- ===== 1-1 & TRAINING SECTION ===== -->
+                <div class="form-section" id="section11">
+                    <form id="form11" onsubmit="return false;">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label><i class="fas fa-globe"></i> Region <span class="required">*</span></label>
+                                <select id="meetingRegion" required>
+                                    <option value="">Select Region</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label><i class="fas fa-store"></i> Center <span class="required">*</span></label>
+                                <select id="meetingCenter" required>
+                                    <option value="">Select Center</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label><i class="fas fa-calendar"></i> Meeting Date <span class="required">*</span></label>
+                                <input type="date" id="meetingDate" required>
+                            </div>
+                            <div class="form-group">
+                                <label><i class="fas fa-users"></i> Meeting Type <span class="required">*</span></label>
+                                <select id="meetingType" required>
+                                    <option value="">Select Type</option>
+                                    <option value="One on One">One on One</option>
+                                    <option value="Team Meet">Team Meet</option>
+                                </select>
+                            </div>
+                            <div class="form-group full-width">
+                                <label><i class="fas fa-envelope"></i> Meeting Attendees (Email IDs comma separated) <span class="required">*</span></label>
+                                <input type="text" id="meetingAttendees" required placeholder="email1@pw.live, email2@pw.live">
+                            </div>
+                            <div class="form-group full-width">
+                                <label><i class="fas fa-file-alt"></i> Discussion Summary / MOM <span class="required">*</span></label>
+                                <textarea id="meetingSummary" placeholder="Enter meeting summary..." required></textarea>
+                            </div>
+                            <div class="form-group full-width">
+                                <label><i class="fas fa-link"></i> Recording Link <span class="required">*</span></label>
+                                <input type="url" id="meetingRecording" required placeholder="https://drive.google.com/...">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- ===== AUDITS SECTION ===== -->
+                <div class="form-section" id="sectionAudit">
+                    <form id="formAudit" onsubmit="return false;">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label><i class="fas fa-globe"></i> Region <span class="required">*</span></label>
+                                <select id="auditRegion" required>
+                                    <option value="">Select Region</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label><i class="fas fa-store"></i> Center <span class="required">*</span></label>
+                                <select id="auditCenter" required>
+                                    <option value="">Select Center</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label><i class="fas fa-calendar"></i> Audit Date <span class="required">*</span></label>
+                                <input type="date" id="auditDate" required>
+                            </div>
+                            <div class="form-group">
+                                <label><i class="fas fa-link"></i> Lead Link <span class="required">*</span></label>
+                                <input type="url" id="auditLeadLink" required placeholder="https://...">
+                            </div>
+                            <div class="form-group full-width">
+                                <label><i class="fas fa-envelope"></i> Counsellor Email ID <span class="required">*</span></label>
+                                <input type="email" id="auditCounsellor" required placeholder="counsellor@pw.live">
+                            </div>
+                            <div class="form-group full-width">
+                                <label><i class="fas fa-comment"></i> Audit Remarks (With Time Stamp) <span class="required">*</span></label>
+                                <textarea id="auditRemarks" placeholder="Enter audit remarks with timestamp..." required></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label><i class="fas fa-star"></i> Audit Score <span class="required">*</span></label>
+                                <select id="auditScore" required>
+                                    <option value="">Select Score</option>
+                                    <option value="Good">Good</option>
+                                    <option value="Average">Average</option>
+                                    <option value="Below Average">Below Average</option>
+                                </select>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- ===== FORM ACTIONS ===== -->
+                <div class="form-actions" id="formActions">
+                    <button class="btn btn-ghost" onclick="window.resetForm()">
+                        <i class="fas fa-undo"></i> Reset
+                    </button>
+                    <button class="btn btn-primary btn-submit" id="counselSubmitBtn" onclick="window.submitForm()" disabled>
+                        <span class="btn-text"><i class="fas fa-paper-plane"></i> Submit</span>
+                        <span class="btn-loader"><i class="fas fa-spinner fa-spin"></i> Submitting...</span>
+                    </button>
+                </div>
+
+                <!-- ===== SUCCESS ===== -->
+                <div class="submit-success" id="counselSuccess">
+                    <div class="success-icon"><i class="fas fa-check-circle"></i></div>
+                    <h3>Response Submitted!</h3>
+                    <p>Thank you! Your counselling cadence response has been recorded.</p>
+                    <button class="btn btn-primary" onclick="window.resetForm()">
+                        <i class="fas fa-plus"></i> Submit Another Response
+                    </button>
+                </div>
+
+                <div class="form-error" id="counselFormError"></div>
+            </div>
+        </section>
+
+        </div>
+        <!-- /tabForm -->
+
         <!-- FOOTER -->
         <footer class="footer">
             <div class="footer-left">
@@ -463,101 +480,41 @@
     <!-- Notification Toast -->
     <div class="toast-container" id="toastContainer"></div>
 
-    <!-- ===== SETTINGS MODAL (triggered by profile click) ===== -->
-    <div class="modal-overlay" id="settingsModal" style="display:none;">
-        <div class="modal-card" style="max-width:440px;width:100%;background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-lg);padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.4);">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-                <h3 style="font-size:1.1rem;font-weight:700;color:var(--text-primary);display:flex;align-items:center;gap:8px;">
-                    <i class="fas fa-cog" style="color:var(--accent-blue);"></i> Settings
-                </h3>
-                <button id="settingsModalClose" style="width:32px;height:32px;border-radius:50%;border:none;background:var(--bg-secondary);color:var(--text-muted);cursor:pointer;font-size:1rem;">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-
-            <!-- Current user info -->
-            <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--bg-primary);border-radius:var(--radius-md);margin-bottom:20px;">
-                <div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--accent-blue),var(--accent-purple));display:flex;align-items:center;justify-content:center;color:white;font-size:1rem;font-weight:700;flex-shrink:0;" id="settingsAvatar">U</div>
-                <div>
-                    <div style="font-size:0.85rem;font-weight:600;color:var(--text-primary);" id="settingsUserName">User</div>
-                    <div style="font-size:0.75rem;color:var(--text-muted);" id="settingsUserEmail">email</div>
-                </div>
-            </div>
-
-            <!-- Change Password -->
-            <div style="margin-bottom:16px;">
-                <label style="display:block;font-size:0.8rem;font-weight:600;color:var(--text-muted);margin-bottom:6px;">New Password</label>
-                <input type="password" id="settingsNewPassword" placeholder="Enter new password" style="width:100%;padding:10px 14px;border-radius:var(--radius-sm);border:1px solid var(--border-color);background:var(--bg-secondary);color:var(--text-primary);font-size:0.85rem;">
-                <div style="height:4px;background:var(--bg-primary);border-radius:2px;margin-top:6px;overflow:hidden;">
-                    <div id="settingsStrengthFill" style="height:100%;width:0%;border-radius:2px;transition:all 0.3s;"></div>
-                </div>
-                <span id="settingsStrengthText" style="font-size:0.72rem;font-weight:600;"></span>
-            </div>
-            <div style="margin-bottom:16px;">
-                <label style="display:block;font-size:0.8rem;font-weight:600;color:var(--text-muted);margin-bottom:6px;">Confirm Password</label>
-                <div style="position:relative;">
-                    <input type="password" id="settingsConfirmPassword" placeholder="Re-enter new password" style="width:100%;padding:10px 14px;border-radius:var(--radius-sm);border:1px solid var(--border-color);background:var(--bg-secondary);color:var(--text-primary);font-size:0.85rem;">
-                    <span id="settingsConfirmStatus" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);"></span>
-                </div>
-            </div>
-            <span id="settingsError" style="display:block;text-align:center;color:#ef4444;font-size:0.8rem;min-height:18px;margin-bottom:8px;"></span>
-
-            <div style="display:flex;gap:10px;justify-content:flex-end;">
-                <button id="settingsLogoutBtn" style="padding:10px 18px;border-radius:var(--radius-sm);font-weight:600;font-size:0.82rem;border:1px solid #ef4444;cursor:pointer;background:transparent;color:#ef4444;transition:var(--transition);">
-                    <i class="fas fa-sign-out-alt"></i> Sign Out
-                </button>
-                <button id="settingsChangeBtn" style="padding:10px 18px;border-radius:var(--radius-sm);font-weight:600;font-size:0.82rem;border:none;cursor:pointer;background:linear-gradient(135deg,var(--accent-blue),var(--accent-purple));color:white;transition:var(--transition);">
-                    <span class="btn-text">Update Password</span>
-                    <span class="btn-loader" style="display:none;"><i class="fas fa-circle-notch fa-spin"></i></span>
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- ===== FORCED PASSWORD CHANGE MODAL ===== -->
-    <div class="modal-overlay" id="forcePasswordModal" style="display:none;">
-        <div class="modal-card" style="max-width:460px;width:100%;background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-lg);padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.4);">
-            <div style="text-align:center;margin-bottom:20px;">
-                <div style="font-size:2.5rem;margin-bottom:12px;">
-                    <i class="fas fa-shield-alt" style="color:var(--accent-blue);"></i>
-                </div>
-                <h3 style="margin-bottom:6px;font-size:1.2rem;font-weight:700;color:var(--text-primary);">Change Your Password</h3>
-                <p style="font-size:0.85rem;color:var(--text-muted);">You're using the default password. For security, please set a new password.</p>
-            </div>
-            <div style="margin-bottom:20px;">
-                <div style="margin-bottom:16px;">
-                    <label style="display:block;font-size:0.8rem;font-weight:600;color:var(--text-muted);margin-bottom:6px;">New Password</label>
-                    <input type="password" id="forceNewPassword" placeholder="Enter new password" style="width:100%;padding:10px 14px;border-radius:var(--radius-sm);border:1px solid var(--border-color);background:var(--bg-secondary);color:var(--text-primary);font-size:0.9rem;">
-                    <div style="height:4px;background:var(--bg-primary);border-radius:2px;margin-top:6px;overflow:hidden;">
-                        <div id="forceStrengthFill" style="height:100%;width:0%;border-radius:2px;transition:all 0.3s;"></div>
-                    </div>
-                    <span id="forceStrengthText" style="font-size:0.75rem;font-weight:600;"></span>
-                </div>
-                <div style="margin-bottom:8px;">
-                    <label style="display:block;font-size:0.8rem;font-weight:600;color:var(--text-muted);margin-bottom:6px;">Confirm Password</label>
-                    <div style="position:relative;">
-                        <input type="password" id="forceConfirmPassword" placeholder="Re-enter new password" style="width:100%;padding:10px 14px;border-radius:var(--radius-sm);border:1px solid var(--border-color);background:var(--bg-secondary);color:var(--text-primary);font-size:0.9rem;">
-                        <span id="forceConfirmStatus" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);"></span>
-                    </div>
-                </div>
-                <span id="forceError" style="display:block;text-align:center;color:#ef4444;font-size:0.8rem;min-height:18px;margin-top:4px;"></span>
-            </div>
-            <div style="display:flex;gap:10px;justify-content:flex-end;">
-                <button id="forceSkipBtn" style="padding:10px 20px;border-radius:var(--radius-sm);font-weight:600;font-size:0.85rem;border:1px solid var(--border-color);cursor:pointer;background:transparent;color:var(--text-muted);transition:var(--transition);">
-                    Skip for Now
-                </button>
-                <button id="forceChangeBtn" style="padding:10px 20px;border-radius:var(--radius-sm);font-weight:600;font-size:0.85rem;border:none;cursor:pointer;background:linear-gradient(135deg,var(--accent-blue),var(--accent-purple));color:white;transition:var(--transition);">
-                    <span class="btn-text">Update Password</span>
-                    <span class="btn-loader" style="display:none;"><i class="fas fa-circle-notch fa-spin"></i></span>
-                </button>
-            </div>
-        </div>
-    </div>
-
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="users.js"></script>
     <script src="counselling-form.js"></script>
     <script src="script.js"></script>
+
+    <!-- ===== VIEW NAVIGATION (Summary <-> Form) ===== -->
+    <script>
+        function showTab(tab) {
+            const summary = document.getElementById('tabSummary');
+            const form = document.getElementById('tabForm');
+            if (summary) summary.classList.toggle('active', tab === 'summary');
+            if (form) form.classList.toggle('active', tab === 'form');
+
+            // Topbar button acts as a toggle: "Fill Form" on home, "Home" on form
+            const fillBtn = document.getElementById('fillFormBtn');
+            if (fillBtn) {
+                const isForm = tab === 'form';
+                fillBtn.innerHTML = isForm
+                    ? '<i class="fas fa-home"></i><span style="font-size:0.8rem;font-weight:600;">Home</span>'
+                    : '<i class="fas fa-clipboard-list"></i><span style="font-size:0.8rem;font-weight:600;">Fill Form</span>';
+                fillBtn.title = isForm ? 'Go back to Home' : 'Fill Counselling Form';
+            }
+
+            window.scrollTo(0, 0);
+            // Re-fit Chart.js after panel becomes visible
+            setTimeout(() => window.dispatchEvent(new Event('resize')), 60);
+        }
+
+        function toggleView() {
+            const form = document.getElementById('tabForm');
+            showTab(form && form.classList.contains('active') ? 'summary' : 'form');
+        }
+        window.showTab = showTab;
+        window.toggleView = toggleView;
+    </script>
 </body>
 </html>
