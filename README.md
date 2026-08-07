@@ -85,6 +85,8 @@ Published as CSV. One row per **center** with columns (used by code):
 | `BH` | Email of Branch Head |
 | `Vertical` | (optional, carried along) |
 
+Region names are **whitespace-normalized** into region ids (`Delhi + HR` and `Delhi+HR` both → `delhi-hr`), so spelling variants merge into one region instead of splitting the hierarchy and the RBH/RCL filter scopes.
+
 Published CSV URL format:
 `https://docs.google.com/spreadsheets/d/e/<SHEET_ID>/pub?output=csv`
 
@@ -187,13 +189,25 @@ ROLES = {
 
 | Role | Can see |
 |---|---|
-| **CL** (level 1) | Only their own center |
-| **BH** (level 2) | Their own BH's centers |
+| **CL** (level 1) | Only their own center / own submissions |
+| **BH** (level 2) | Their own BH's centers / their BH's CLs |
 | **RCL** (level 3) | Their managed BHs (from `managedBHs` or region RCL → BH links) |
 | **RBH** (level 4) | Their managed BHs + managed RCLs, restricted to their region |
 | **Admin** (level 5) | Everything |
 
-### 7.3 Org tree building
+### 7.3 Row-level scope (`applyRoleRowScope`)
+
+Beyond the org-tree and filter locks above, **every data row** — summary table, KPI cards, charts, Top/Bottom 10, recent activity — is gated by `applyRoleRowScope(row)`, hooked into `rowMatchesUnifiedFilters` so the whole chain is enforced in one place:
+
+- **CL** — row `Submitted By` = session email
+- **BH** — row submitter's `bh` = session `bh`
+- **RCL** — row submitter's `rcl` = session `rcl`
+- **RBH** — row submitter's `rbh` = session `rbh`
+- **Admin** — all rows
+
+Session identity fields come from the login session (`session.bh / rcl / rbh`), falling back to the Sheet1 hierarchy (`window._orgData.users[session.email]`). The **Email (Submitted By)** dropdown is populated from the same role-scoped visible set (`_summaryCache.visibleEmails`), so e.g. a CL only ever sees their own email in it.
+
+### 7.4 Org tree building
 
 `updateTeamList()` groups CLs under **BH** and **RCL** nodes, which sit under an **RBH** node. Each node shows:
 
@@ -217,7 +231,7 @@ Counts come from `_formCountByEmail` (rebuilt from the current unit + date filte
 
 ### 8.2 Unified top filters
 
-The **top filter bar** — `customStartDate` / `customEndDate` + Region / BH / RCL / Center / CL — drives **every** dashboard block. All blocks re-render on any filter change (and on date changes) via `refreshAllFromFilters()`, which reads the filter state once through `getTopFilterState()` and reuses a cached copy of the raw response rows (`_summaryCache`), so no re-fetch is needed:
+The **top filter bar** — `customStartDate` / `customEndDate` + Region / BH / RCL / Center / CL / **Email (Submitted By)** — drives **every** dashboard block. The Email filter (`filterEmail`) narrows to a single submitter; it is populated **role-scoped** from `_summaryCache.visibleEmails` (plus the logged-in user's own email always), so nobody can browse submissions outside their role's scope through it. All blocks re-render on any filter change (and on date changes) via `refreshAllFromFilters()`, which reads the filter state once through `getTopFilterState()` and reuses a cached copy of the raw response rows (`_summaryCache`), so no re-fetch is needed:
 
 - **Summary table** — role-based visible emails (`getSummaryVisibleEmails`) ∩ rows passing the unified row filter (`rowMatchesUnifiedFilters`, unit + date).
 - **KPI cards, trend/region charts, Top/Bottom 10** — row-level filtering via `rowMatchesUnifiedFilters` (date + unit scope).

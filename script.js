@@ -31,11 +31,14 @@ async function initDashboard() {
     // =============================================
     let sheetRows = [];
     let orgData = { regions: [] };
+    const syncOrgData = () => { window._orgData = orgData; }; // module-level access (populateEmailFilter, applyRoleRowScope)
+    syncOrgData();
 
     try {
         showToast('Loading data from sheet...', 'info');
         sheetRows = await fetchSheetData();
         orgData = buildOrgDataFromSheet(sheetRows);
+        syncOrgData();
         showToast('Data loaded successfully!', 'success');
     } catch (error) {
         console.error('Failed to fetch sheet data:', error);
@@ -44,6 +47,7 @@ async function initDashboard() {
         const cached = localStorage.getItem('cadence-org-data');
         if (cached) {
             orgData = JSON.parse(cached);
+            syncOrgData();
         }
     }
 
@@ -110,7 +114,8 @@ async function initDashboard() {
                     name: rbhEmail.split('@')[0].replace(/[._]/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
                     role: 'rbh',
                     region: region,
-                    managedBHs: [],   
+                    rbh: rbhEmail,
+                    managedBHs: [],
                     managedRCLs: []
                 };
             }
@@ -122,6 +127,8 @@ async function initDashboard() {
                     name: rclEmail.split('@')[0].replace(/[._]/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
                     role: 'rcl',
                     region: region,
+                    rcl: rclEmail,
+                    rbh: rbhEmail,
                     managedBHs: []
                 };
             }
@@ -132,14 +139,19 @@ async function initDashboard() {
                     email: bhEmail,
                     name: bhEmail.split('@')[0].replace(/[._]/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
                     role: 'bh',
-                    region: region
+                    region: region,
+                    bh: bhEmail,
+                    rcl: rclEmail,
+                    rbh: rbhEmail
                 };
             }
 
-            // Build region structure
-            if (!regions[region]) {
-                regions[region] = {
-                    id: region.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+            // Build region structure (id/key whitespace-normalized so spelling
+            // variants like "Delhi + HR" / "Delhi+HR" merge into one region)
+            const regionKey = region.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '-');
+            if (!regions[regionKey]) {
+                regions[regionKey] = {
+                    id: regionKey,
                     name: region,
                     rcls: {},
                     bhs: {},
@@ -147,7 +159,7 @@ async function initDashboard() {
                 };
             }
 
-            const regionData = regions[region];
+            const regionData = regions[regionKey];
 
             // Add RCL
             if (rclEmail && rclEmail !== '-' && !regionData.rcls[rclEmail]) {
@@ -237,7 +249,7 @@ async function initDashboard() {
 
     function regionNameToId(name) {
         if (!name) return '';
-        return name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+        return name.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '-');
     }
 
     // 3. HELPER: FLATTEN & FILTER DATA
@@ -434,6 +446,21 @@ async function initDashboard() {
             sel.innerHTML += `<option value="${centerId}">${c ? c.name : user.center}</option>`;
             return;
         }
+        if (role.level <= 3) {
+            // RCL: only centers of BHs that belong to my own RCL
+            const myRcl = user.rcl || user.email;
+            orgData.regions.forEach(r => {
+                if (regionId && r.id !== regionId) return;
+                r.bhs.forEach(bh => {
+                    if (bhId && bh.id !== bhId) return;
+                    bh.centers.forEach(c => {
+                        if (c.rcl && c.rcl !== myRcl) return;
+                        sel.innerHTML += `<option value="${c.id}">${c.name} (${bh.name})</option>`;
+                    });
+                });
+            });
+            return;
+        }
         orgData.regions.forEach(r => {
             if (regionId && r.id !== regionId) return;
             r.bhs.forEach(bh => {
@@ -456,6 +483,22 @@ async function initDashboard() {
         const user = session;
         if (role.level <= 1) {
             sel.innerHTML += `<option value="${user.email}">${user.name}</option>`;
+            return;
+        }
+        if (role.level <= 3) {
+            // RCL: only CLs of centers whose BH belongs to my own RCL
+            const myRcl = user.rcl || user.email;
+            orgData.regions.forEach(r => {
+                if (regionId && r.id !== regionId) return;
+                r.bhs.forEach(bh => {
+                    if (bhId && bh.id !== bhId) return;
+                    bh.centers.forEach(c => {
+                        if (c.rcl && c.rcl !== myRcl) return;
+                        const clUser = orgData.users[c.cl];
+                        sel.innerHTML += `<option value="${c.cl}">${clUser?.name || c.cl} (${c.name})</option>`;
+                    });
+                });
+            });
             return;
         }
         orgData.regions.forEach(r => {
@@ -897,6 +940,7 @@ async function initDashboard() {
     document.getElementById('filterRCL').addEventListener('change', () => onFilterChange('rcl'));
     document.getElementById('filterCenter').addEventListener('change', () => onFilterChange('center'));
     document.getElementById('filterCL').addEventListener('change', () => onFilterChange('cl'));
+    document.getElementById('filterEmail').addEventListener('change', () => onFilterChange('email'));
 
     document.getElementById('filterResetBtn').addEventListener('click', () => {
         const role = ROLES[currentRole];
@@ -906,11 +950,13 @@ async function initDashboard() {
         const rclSel = document.getElementById('filterRCL');
         const centerSel = document.getElementById('filterCenter');
         const clSel = document.getElementById('filterCL');
+        const emailSel = document.getElementById('filterEmail');
         if (!regionSel.disabled) regionSel.value = '';
         if (!bhSel.disabled) bhSel.value = '';
         if (!rclSel.disabled) rclSel.value = '';
         if (!centerSel.disabled) centerSel.value = '';
         if (!clSel.disabled) clSel.value = '';
+        if (emailSel && !emailSel.disabled) emailSel.value = '';
         onFilterChange();
         showToast('Filters reset!', 'info');
     });
@@ -1059,6 +1105,8 @@ async function loadSummaryData() {
         // Cache raw data so filter changes re-render every block without re-fetching
         _summaryCache = { rows, roleMap, visibleEmails };
 
+        populateEmailFilter();
+
         els.loading.style.display = 'none';
 
         refreshAllFromFilters();
@@ -1171,8 +1219,42 @@ function getTopFilterState() {
         bh: (document.getElementById('filterBH') || {}).value || '',
         rcl: (document.getElementById('filterRCL') || {}).value || '',
         center: (document.getElementById('filterCenter') || {}).value || '',
-        cl: (document.getElementById('filterCL') || {}).value || ''
+        cl: (document.getElementById('filterCL') || {}).value || '',
+        email: (document.getElementById('filterEmail') || {}).value || ''
     };
+}
+
+// Populate the "Email (Submitted By)" filter from form rows + Sheet2 members.
+// Role-scoped: only emails inside the user's visible scope (summary visibleEmails)
+// are listed, so a CL can't browse another CL's data via this dropdown.
+function populateEmailFilter() {
+    const sel = document.getElementById('filterEmail');
+    if (!sel) return;
+    const prev = sel.value;
+    const visible = _summaryCache.visibleEmails || new Set();
+    const allowed = e => !visible.size || visible.has(e);
+    const set = new Set();
+    (_summaryCache?.rows || []).forEach(r => {
+        const e = (r['Submitted By'] || '').trim().toLowerCase();
+        if (e && allowed(e)) set.add(e);
+    });
+    Object.keys(window._emailMeta || {}).forEach(e => { if (allowed(e)) set.add(e); });
+    // Always include the logged-in user's own email
+    const session = JSON.parse(localStorage.getItem('cadence-session') || '{}');
+    if (session.email) set.add(String(session.email).toLowerCase().trim());
+    const emails = Array.from(set).sort((a, b) => {
+        const users = (window._orgData && window._orgData.users) || {};
+        const na = (users[a] && users[a].name) || a;
+        const nb = (users[b] && users[b].name) || b;
+        return na.localeCompare(nb);
+    });
+    sel.innerHTML = '<option value="">All Emails</option>';
+    emails.forEach(e => {
+        const users = (window._orgData && window._orgData.users) || {};
+        const name = (users[e] && users[e].name) || '';
+        sel.innerHTML += `<option value="${e}">${name ? name + ' — ' : ''}${e}</option>`;
+    });
+    if (prev && emails.includes(prev)) sel.value = prev;
 }
 
 function getRowDate(row) {
@@ -1207,6 +1289,37 @@ function buildEmailMeta(sheetRows) {
         if (email) window._emailMeta[email] = meta;
         if (meta.center) window._centerMetaByName[_norm(meta.center)] = meta;
     });
+}
+
+// Role-based row scoping from the Sheet1 hierarchy (applies regardless of top filters):
+//   CL  -> only own submissions
+//   BH  -> only CLs whose BH == my BH
+//   RCL -> only CLs whose RCL == my RCL
+//   RBH -> only CLs whose RBH == my RBH
+//   admin -> everything
+function applyRoleRowScope(row) {
+    const session = JSON.parse(localStorage.getItem('cadence-session') || '{}');
+    const role = (session.role || '').toLowerCase();
+    const levels = { admin: 5, rbh: 4, rcl: 3, bh: 2, cl: 1 };
+    const level = levels[role];
+    if (!level || level >= 5) return true; // admin (or unknown role) sees everything
+
+    const email = (row['Submitted By'] || '').toLowerCase().trim();
+    if (!email) return true;
+
+    const users = (window._orgData && window._orgData.users) || {};
+    const ses = users[(session.email || '').toLowerCase().trim()] || {};
+    const sub = users[email] || {};
+    const n = s => String(s || '').toLowerCase().trim();
+
+    const myBh = n(session.bh || ses.bh);
+    const myRcl = n(session.rcl || ses.rcl);
+    const myRbh = n(session.rbh || ses.rbh);
+
+    if (level <= 1) return email === n(session.email);
+    if (level <= 2) return !!myBh && n(sub.bh) === myBh;
+    if (level <= 3) return !!myRcl && n(sub.rcl) === myRcl;
+    return !!myRbh && n(sub.rbh) === myRbh;
 }
 
 // Does a form row pass the current top filters?
@@ -1267,6 +1380,10 @@ function rowMatchesUnifiedFilters(row, { includeDate = true } = {}) {
     }
 
     if (f.cl && email !== f.cl.toLowerCase().trim()) return false;
+
+    if (f.email && email !== f.email.toLowerCase().trim()) return false;
+
+    if (!applyRoleRowScope(row)) return false;
 
     return true;
 }
