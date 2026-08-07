@@ -7,6 +7,12 @@
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        /* Table Distinction Styles */
+        .col-audit { background-color: rgba(59, 130, 246, 0.02) !important; }
+        .col-meet { background-color: rgba(168, 85, 247, 0.02) !important; }
+        .border-left-thick { border-left: 2px solid var(--border-color) !important; }
+    </style>
 </head>
 <body>
 
@@ -196,26 +202,27 @@
                     <br><span id="summaryErrorMsg">Failed to load summary data.</span>
                 </div>
                 <div id="summaryTableWrap" style="display:none;">
-                    <table class="summary-table" id="summaryTable">
+                    <table class="summary-table" id="summaryTable" style="border-collapse: collapse; width: 100%;">
                         <thead>
                             <tr style="background:var(--bg-secondary);">
                                 <th rowspan="2" style="padding:10px;border-bottom:1px solid var(--border-color); vertical-align: middle;">Email</th>
                                 <th rowspan="2" style="padding:10px;border-bottom:1px solid var(--border-color); vertical-align: middle;">Role</th>
-                                <th colspan="5" style="padding:10px;text-align:center;background:rgba(59,130,246,0.08);border-bottom:1px solid var(--border-color);">Audits</th>
-                                <th colspan="5" style="padding:10px;text-align:center;background:rgba(168,85,247,0.08);border-bottom:1px solid var(--border-color);">1-1 Meetings</th>
+                                
+                                <th colspan="5" class="col-audit border-left-thick" style="padding:10px;text-align:center;border-bottom:1px solid var(--border-color); color: var(--accent-blue);">AUDITS</th>
+                                <th colspan="5" class="col-meet border-left-thick" style="padding:10px;text-align:center;border-bottom:1px solid var(--border-color); color: var(--accent-purple);">1-1 MEETINGS</th>
                             </tr>
                             <tr style="background:var(--bg-secondary);">
-                                <th style="padding:10px;border-bottom:1px solid var(--border-color);">No of Audits</th>
-                                <th style="padding:10px;border-bottom:1px solid var(--border-color);">Audits Daily Avg</th>
-                                <th style="padding:10px;border-bottom:1px solid var(--border-color);">Audit Status on Day Basis</th>
-                                <th style="padding:10px;border-bottom:1px solid var(--border-color);">Audits Weekly Avg</th>
-                                <th style="padding:10px;border-bottom:1px solid var(--border-color);">Audit Status on weekly Basis</th>
+                                <th class="col-audit border-left-thick" style="padding:10px;border-bottom:1px solid var(--border-color);">No of Audits</th>
+                                <th class="col-audit" style="padding:10px;border-bottom:1px solid var(--border-color);">Audits Daily Avg</th>
+                                <th class="col-audit" style="padding:10px;border-bottom:1px solid var(--border-color);">Audit Status on Day Basis</th>
+                                <th class="col-audit" style="padding:10px;border-bottom:1px solid var(--border-color);">Audits Weekly Avg</th>
+                                <th class="col-audit" style="padding:10px;border-bottom:1px solid var(--border-color);">Audit Status on weekly Basis</th>
                                 
-                                <th style="padding:10px;border-bottom:1px solid var(--border-color);">No of Meetings</th>
-                                <th style="padding:10px;border-bottom:1px solid var(--border-color);">1-1 meet Daily Avg</th>
-                                <th style="padding:10px;border-bottom:1px solid var(--border-color);">1-1 meet Status on Day Basis</th>
-                                <th style="padding:10px;border-bottom:1px solid var(--border-color);">1-1 meet Weekly Avg</th>
-                                <th style="padding:10px;border-bottom:1px solid var(--border-color);">Status on week Basis</th>
+                                <th class="col-meet border-left-thick" style="padding:10px;border-bottom:1px solid var(--border-color);">No of Meetings</th>
+                                <th class="col-meet" style="padding:10px;border-bottom:1px solid var(--border-color);">1-1 meet Daily Avg</th>
+                                <th class="col-meet" style="padding:10px;border-bottom:1px solid var(--border-color);">1-1 meet Status on Day Basis</th>
+                                <th class="col-meet" style="padding:10px;border-bottom:1px solid var(--border-color);">1-1 meet Weekly Avg</th>
+                                <th class="col-meet" style="padding:10px;border-bottom:1px solid var(--border-color);">Status on week Basis</th>
                             </tr>
                         </thead>
                         <tbody id="summaryBody"></tbody>
@@ -518,7 +525,6 @@
             if (summary) summary.classList.toggle('active', tab === 'summary');
             if (form) form.classList.toggle('active', tab === 'form');
 
-            // Topbar button acts as a toggle: "Fill Form" on home, "Home" on form
             const fillBtn = document.getElementById('fillFormBtn');
             if (fillBtn) {
                 const isForm = tab === 'form';
@@ -529,7 +535,6 @@
             }
 
             window.scrollTo(0, 0);
-            // Re-fit Chart.js after panel becomes visible
             setTimeout(() => window.dispatchEvent(new Event('resize')), 60);
         }
 
