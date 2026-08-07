@@ -27,7 +27,36 @@
                         <i class="fas fa-clipboard-list"></i>
                         <span style="font-size:0.8rem;font-weight:600;">Fill Form</span>
                     </button>
-                    <!-- Profile actions hidden for brevity but remain functional -->
+                    <button class="action-btn" title="Refresh" id="refreshBtn">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                    <button class="action-btn" title="Full Screen" id="fullscreenBtn">
+                        <i class="fas fa-expand"></i>
+                    </button>
+                    <!-- Profile / Settings -->
+                    <div class="profile-btn" id="profileBtn" title="Settings" style="position:relative;cursor:pointer;">
+                        <div class="profile-avatar" id="profileAvatar">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div class="profile-info" id="profileInfo">
+                            <span class="profile-name" id="profileUserName">User</span>
+                            <span class="profile-role" id="profileUserRole">Role</span>
+                        </div>
+                        <div class="profile-dropdown" id="profileDropdown" style="display:none;position:absolute;top:100%;right:0;margin-top:8px;background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-md);min-width:200px;box-shadow:0 10px 40px rgba(0,0,0,0.5);z-index:999;">
+                            <div style="padding:14px 16px;border-bottom:1px solid var(--border-color);">
+                                <div style="font-size:0.82rem;font-weight:600;color:var(--text-primary);" id="dropdownUserName">User</div>
+                                <div style="font-size:0.75rem;color:var(--text-muted);" id="dropdownUserEmail">email</div>
+                            </div>
+                            <div style="padding:6px;">
+                                <button class="dropdown-item" id="dropdownSettings" style="display:flex;align-items:center;gap:10px;width:100%;padding:10px 14px;border:none;border-radius:var(--radius-sm);background:transparent;color:var(--text-primary);font-size:0.82rem;font-weight:500;cursor:pointer;transition:var(--transition);font-family:inherit;">
+                                    <i class="fas fa-cog" style="width:18px;color:var(--text-muted);"></i> Settings
+                                </button>
+                                <button class="dropdown-item" id="dropdownLogout" style="display:flex;align-items:center;gap:10px;width:100%;padding:10px 14px;border:none;border-radius:var(--radius-sm);background:transparent;color:#ef4444;font-size:0.82rem;font-weight:500;cursor:pointer;transition:var(--transition);font-family:inherit;">
+                                    <i class="fas fa-sign-out-alt" style="width:18px;"></i> Sign Out
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </header>
@@ -35,154 +64,478 @@
         <!-- ===== TAB PANEL: SUMMARY (HOME) ===== -->
         <div class="tab-panel active" id="tabSummary">
 
-            <!-- 1. DATE FILTER SECTION -->
-            <section class="filter-section" id="filterSection">
-                <div class="filter-header">
-                    <h3><i class="fas fa-filter"></i> Filters</h3>
+        <!-- FILTER SECTION -->
+        <section class="filter-section" id="filterSection">
+            <div class="filter-header">
+                <h3><i class="fas fa-filter"></i> Filters</h3>
+                <button class="filter-reset-btn" id="filterResetBtn">
+                    <i class="fas fa-undo"></i> Reset All
+                </button>
+            </div>
+            <div class="filter-grid">
+                <!-- Custom Date Filters Added -->
+                <div class="filter-group">
+                    <label for="customStartDate"><i class="fas fa-calendar"></i> Start Date</label>
+                    <input type="date" id="customStartDate" class="filter-select">
                 </div>
-                <div class="filter-grid">
-                    <div class="filter-group">
-                        <label for="filterStartDate"><i class="fas fa-calendar"></i> Start Date</label>
-                        <input type="date" id="filterStartDate" class="filter-select">
-                    </div>
-                    <div class="filter-group">
-                        <label for="filterEndDate"><i class="fas fa-calendar-alt"></i> End Date</label>
-                        <input type="date" id="filterEndDate" class="filter-select">
-                    </div>
-                    <div class="filter-group" style="display:flex; align-items:flex-end;">
-                        <button onclick="applyDashboardFilters()" style="padding:10px 20px; background:var(--accent-blue); color:white; border-radius:6px; font-weight:600;">Apply Filter</button>
-                    </div>
+                <div class="filter-group">
+                    <label for="customEndDate"><i class="fas fa-calendar-alt"></i> End Date</label>
+                    <input type="date" id="customEndDate" class="filter-select">
                 </div>
-            </section>
+                <!-- Region Filter -->
+                <div class="filter-group" id="filterRegionGroup">
+                    <label for="filterRegion"><i class="fas fa-globe"></i> Region</label>
+                    <select id="filterRegion" class="filter-select"><option value="">All Regions</option></select>
+                </div>
+                <!-- BH Filter -->
+                <div class="filter-group" id="filterBHGroup">
+                    <label for="filterBH"><i class="fas fa-building"></i> BH</label>
+                    <select id="filterBH" class="filter-select"><option value="">All BH</option></select>
+                </div>
+                <!-- RCL Filter -->
+                <div class="filter-group" id="filterRCLGroup">
+                    <label for="filterRCL"><i class="fas fa-sitemap"></i> RCL</label>
+                    <select id="filterRCL" class="filter-select"><option value="">All RCL</option></select>
+                </div>
+                <!-- Center Filter -->
+                <div class="filter-group" id="filterCenterGroup">
+                    <label for="filterCenter"><i class="fas fa-store"></i> Center</label>
+                    <select id="filterCenter" class="filter-select"><option value="">All Centers</option></select>
+                </div>
+                <!-- CL Filter -->
+                <div class="filter-group" id="filterCLGroup">
+                    <label for="filterCL"><i class="fas fa-user-tie"></i> CL</label>
+                    <select id="filterCL" class="filter-select"><option value="">All CL</option></select>
+                </div>
+            </div>
+        </section>
 
-            <!-- 2. KPI SECTION -->
-            <section class="kpi-section" style="display: flex; gap: 20px; flex-wrap: wrap;">
-                <div class="kpi-card" style="flex: 1;">
-                    <div class="kpi-icon blue"><i class="fas fa-file-alt"></i></div>
-                    <div class="kpi-info">
-                        <h3 id="kpiFiltered">0</h3>
-                        <p>Total Submissions (Selected Dates)</p>
-                    </div>
-                </div>
-                <div class="kpi-card" style="flex: 1;">
-                    <div class="kpi-icon green"><i class="fas fa-globe"></i></div>
-                    <div class="kpi-info">
-                        <h3 id="kpiOverall">0</h3>
-                        <p>Total Submissions (Overall)</p>
-                    </div>
-                </div>
-                <div class="kpi-card" style="flex: 1;">
-                    <div class="kpi-icon orange"><i class="fas fa-calendar-check"></i></div>
-                    <div class="kpi-info">
-                        <h3 id="kpiMTD">0</h3>
-                        <p>Total Submissions (MTD)</p>
-                    </div>
-                </div>
-                <div class="kpi-card" style="flex: 1;">
-                    <div class="kpi-icon purple"><i class="fas fa-users"></i></div>
-                    <div class="kpi-info">
-                        <h3 id="kpiMembers">0</h3>
-                        <p>Members Filling (BH+CL+RCL+RBH)</p>
-                    </div>
-                </div>
-            </section>
+        <!-- WELCOME SECTION -->
+        <section class="welcome-section">
+            <div class="welcome-text">
+                <h1>Welcome to <span class="highlight">CADENCE</span> Report</h1>
+                <p>Your centralized dashboard for tracking, analyzing, and reporting cadence data.</p>
+            </div>
+        </section>
 
-            <!-- 3. SUMMARY TABLE (Moved above the views with corrected headers) -->
-            <section class="dashboard-section" style="padding: 20px 28px;">
-                <div class="card" style="padding: 20px;">
-                    <h2 style="margin-bottom: 15px;"><i class="fas fa-table"></i> Overall Summary Table</h2>
-                    <div style="overflow-x:auto;">
-                        <table style="width: 100%; text-align: left; border-collapse: collapse;">
-                            <thead>
-                                <tr style="background: rgba(59,130,246,0.08);">
-                                    <th style="padding: 12px; border-bottom: 1px solid var(--border-color);">Name / Email</th>
-                                    <th style="padding: 12px; border-bottom: 1px solid var(--border-color);">Role</th>
-                                    <th style="padding: 12px; border-bottom: 1px solid var(--border-color);">Overall Submissions</th>
-                                    <th style="padding: 12px; border-bottom: 1px solid var(--border-color);">MTD Submissions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="mainSummaryBody">
-                                <!-- Data injected via JavaScript -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
+        <!-- NEW KPIs (Added specifically for new requirements) -->
+        <section class="kpi-section" style="margin-bottom: 20px;">
+            <div class="kpi-card" data-aos="fade-up">
+                <div class="kpi-icon blue"><i class="fas fa-filter"></i></div>
+                <div class="kpi-info"><h3 id="newKpiFiltered">0</h3><p>Filtered Submissions</p></div>
+            </div>
+            <div class="kpi-card" data-aos="fade-up">
+                <div class="kpi-icon green"><i class="fas fa-globe"></i></div>
+                <div class="kpi-info"><h3 id="newKpiOverall">0</h3><p>Overall Submissions</p></div>
+            </div>
+            <div class="kpi-card" data-aos="fade-up">
+                <div class="kpi-icon orange"><i class="fas fa-calendar-day"></i></div>
+                <div class="kpi-info"><h3 id="newKpiMTD">0</h3><p>MTD Submissions</p></div>
+            </div>
+            <div class="kpi-card" data-aos="fade-up">
+                <div class="kpi-icon purple"><i class="fas fa-users"></i></div>
+                <div class="kpi-info"><h3 id="newKpiMembers">0</h3><p>Members (BH+CL+RCL+RBH)</p></div>
+            </div>
+        </section>
 
-            <!-- 4. DASHBOARD VIEWS -->
-            <section class="dashboard-grid">
-                <!-- View 1: Trend Line -->
-                <div class="card chart-card">
-                    <div class="card-header">
-                        <h2><i class="fas fa-chart-line"></i> Daily Form Submissions Trend</h2>
-                    </div>
-                    <div class="card-body">
-                        <canvas id="trendChartCanvas"></canvas>
-                    </div>
-                </div>
+        <!-- OLD KPI CARDS (Preserved functionality) -->
+        <section class="kpi-section">
+            <div class="kpi-card" data-aos="fade-up">
+                <div class="kpi-icon blue"><i class="fas fa-clipboard-list"></i></div>
+                <div class="kpi-info"><h3 id="totalTasks">0</h3><p>Total Tasks</p></div>
+                <div class="kpi-trend up" id="trendTotal"><i class="fas fa-arrow-up"></i><span>+12%</span></div>
+            </div>
+            <div class="kpi-card" data-aos="fade-up">
+                <div class="kpi-icon green"><i class="fas fa-check-circle"></i></div>
+                <div class="kpi-info"><h3 id="completedTasks">0</h3><p>Completed</p></div>
+                <div class="kpi-trend up" id="trendCompleted"><i class="fas fa-arrow-up"></i><span>+8%</span></div>
+            </div>
+            <div class="kpi-card" data-aos="fade-up">
+                <div class="kpi-icon orange"><i class="fas fa-spinner"></i></div>
+                <div class="kpi-info"><h3 id="pendingTasks">0</h3><p>In Progress</p></div>
+                <div class="kpi-trend down" id="trendPending"><i class="fas fa-arrow-down"></i><span>-3%</span></div>
+            </div>
+            <div class="kpi-card" data-aos="fade-up">
+                <div class="kpi-icon red"><i class="fas fa-exclamation-triangle"></i></div>
+                <div class="kpi-info"><h3 id="overdueTasks">0</h3><p>Overdue</p></div>
+                <div class="kpi-trend down" id="trendOverdue"><i class="fas fa-arrow-down"></i><span>-5%</span></div>
+            </div>
+        </section>
 
-                <!-- View 2: Region Bar Chart -->
-                <div class="card chart-card">
-                    <div class="card-header">
-                        <h2><i class="fas fa-chart-bar"></i> Region-Wise Submissions</h2>
-                    </div>
-                    <div class="card-body">
-                        <canvas id="regionChartCanvas"></canvas>
-                    </div>
+        <!-- ========== COUNSELLING SUMMARY SECTION (Moved Top & Headers Corrected) ========== -->
+        <section class="dashboard-section" id="counsellingSummary" style="padding:0 28px 28px;">
+            <div class="section-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
+                <div class="section-title" style="display:flex;align-items:center;gap:10px;">
+                    <i class="fas fa-clipboard-check" style="color:var(--accent-blue);font-size:1.2rem;"></i>
+                    <h2 style="font-size:1.1rem;font-weight:700;">Counselling Cadence Summary</h2>
                 </div>
-            </section>
+                <div class="summary-filters" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                    <div style="display:flex;align-items:center;gap:4px;">
+                        <label style="font-size:0.78rem;color:var(--text-muted);white-space:nowrap;">From:</label>
+                        <input type="date" id="summaryFromDate" style="background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border-color);border-radius:6px;padding:5px 8px;font-size:0.78rem;">
+                    </div>
+                    <div style="display:flex;align-items:center;gap:4px;">
+                        <label style="font-size:0.78rem;color:var(--text-muted);white-space:nowrap;">To:</label>
+                        <input type="date" id="summaryToDate" style="background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border-color);border-radius:6px;padding:5px 8px;font-size:0.78rem;">
+                    </div>
+                    <button class="btn-filter" id="summaryFilterBtn" style="padding:5px 14px;border:none;border-radius:6px;background:linear-gradient(135deg,var(--accent-blue),var(--accent-purple));color:white;font-weight:600;font-size:0.78rem;cursor:pointer;">
+                        <i class="fas fa-filter"></i> Apply
+                    </button>
+                    <button class="btn-refresh" id="summaryRefreshBtn" style="padding:5px 10px;border:1px solid var(--border-color);border-radius:6px;background:transparent;color:var(--text-muted);font-size:0.78rem;cursor:pointer;">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="card" style="overflow-x:auto;">
+                <div id="summaryLoading" style="text-align:center;padding:40px;color:var(--text-muted);">
+                    <i class="fas fa-spinner fa-spin" style="font-size:1.5rem;margin-bottom:10px;"></i>
+                    <br>Loading summary data...
+                </div>
+                <div id="summaryError" style="display:none;text-align:center;padding:30px;color:var(--accent-red);">
+                    <i class="fas fa-exclamation-triangle" style="font-size:1.5rem;margin-bottom:10px;"></i>
+                    <br><span id="summaryErrorMsg">Failed to load summary data.</span>
+                </div>
+                <div id="summaryTableWrap" style="display:none;">
+                    <table class="summary-table" id="summaryTable">
+                        <thead>
+                            <tr style="background:var(--bg-secondary);">
+                                <th rowspan="2" style="padding:10px;border-bottom:1px solid var(--border-color); vertical-align: middle;">Email</th>
+                                <th rowspan="2" style="padding:10px;border-bottom:1px solid var(--border-color); vertical-align: middle;">Role</th>
+                                <th colspan="4" style="padding:10px;text-align:center;background:rgba(59,130,246,0.08);border-bottom:1px solid var(--border-color);">Audits</th>
+                                <th colspan="4" style="padding:10px;text-align:center;background:rgba(168,85,247,0.08);border-bottom:1px solid var(--border-color);">1-1 Meetings</th>
+                            </tr>
+                            <tr style="background:var(--bg-secondary);">
+                                <th style="padding:10px;border-bottom:1px solid var(--border-color);">Total</th>
+                                <th style="padding:10px;border-bottom:1px solid var(--border-color);">Daily Avg</th>
+                                <th style="padding:10px;border-bottom:1px solid var(--border-color);">Weekly Avg</th>
+                                <th style="padding:10px;border-bottom:1px solid var(--border-color);">Status</th>
+                                <th style="padding:10px;border-bottom:1px solid var(--border-color);">Total</th>
+                                <th style="padding:10px;border-bottom:1px solid var(--border-color);">Daily Avg</th>
+                                <th style="padding:10px;border-bottom:1px solid var(--border-color);">Weekly Avg</th>
+                                <th style="padding:10px;border-bottom:1px solid var(--border-color);">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="summaryBody"></tbody>
+                    </table>
+                </div>
+                <div id="summaryEmpty" style="display:none;text-align:center;padding:40px;color:var(--text-muted);">
+                    <i class="fas fa-inbox" style="font-size:2rem;margin-bottom:10px;"></i>
+                    <br>No form responses found for the selected period.
+                </div>
+            </div>
+        </section>
 
-            <!-- View 3: TOP & BOTTOM 10 PERFORMERS -->
-            <section class="dashboard-grid" style="grid-template-columns: 1fr 1fr; margin-top: 20px;">
-                <div class="card">
-                    <div class="card-header">
-                        <h2><i class="fas fa-trophy" style="color: gold;"></i> Top 10 (BH, CL, RCL, CM)</h2>
-                    </div>
-                    <div class="card-body" style="overflow-x: auto;">
-                        <table style="width: 100%; border-collapse: collapse; text-align: left;">
-                            <thead>
-                                <tr style="border-bottom: 1px solid var(--border-color);">
-                                    <th style="padding: 10px;">Name/Role</th>
-                                    <th style="padding: 10px;">Overall</th>
-                                    <th style="padding: 10px;">MTD</th>
-                                </tr>
-                            </thead>
-                            <tbody id="top10Body"></tbody>
-                        </table>
-                    </div>
-                </div>
+        <!-- MAIN DASHBOARD GRID (Views placed immediately beneath) -->
+        <section class="dashboard-grid">
 
-                <div class="card">
-                    <div class="card-header">
-                        <h2><i class="fas fa-arrow-down" style="color: red;"></i> Bottom 10 (BH, CL, RCL, CM)</h2>
-                    </div>
-                    <div class="card-body" style="overflow-x: auto;">
-                        <table style="width: 100%; border-collapse: collapse; text-align: left;">
-                            <thead>
-                                <tr style="border-bottom: 1px solid var(--border-color);">
-                                    <th style="padding: 10px;">Name/Role</th>
-                                    <th style="padding: 10px;">Overall</th>
-                                    <th style="padding: 10px;">MTD</th>
-                                </tr>
-                            </thead>
-                            <tbody id="bottom10Body"></tbody>
-                        </table>
+            <!-- View 1: Trend Line (Audit vs 1-1) -->
+            <div class="card chart-card">
+                <div class="card-header">
+                    <h2><i class="fas fa-chart-line"></i> Daily Form Submissions Trend</h2>
+                </div>
+                <div class="card-body" style="height: 350px;">
+                    <canvas id="customTrendChart"></canvas>
+                </div>
+            </div>
+
+            <!-- View 2: Region Bar Chart -->
+            <div class="card chart-card">
+                <div class="card-header">
+                    <h2><i class="fas fa-map-marker-alt"></i> Region-Wise Form Submissions</h2>
+                </div>
+                <div class="card-body" style="height: 350px;">
+                    <canvas id="customRegionChart"></canvas>
+                </div>
+            </div>
+
+            <!-- View 3: Top 10 BH, CL, RCL, CM -->
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-trophy" style="color: gold;"></i> Top 10 Performers</h2>
+                </div>
+                <div class="card-body" style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--border-color); background: rgba(59,130,246,0.05);">
+                                <th style="padding: 12px;">Name/Role</th>
+                                <th style="padding: 12px;">Overall Submissions</th>
+                                <th style="padding: 12px;">MTD</th>
+                            </tr>
+                        </thead>
+                        <tbody id="top10Body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- View 4: Bottom 10 BH, CL, RCL, CM -->
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-arrow-down" style="color: red;"></i> Bottom 10 Performers</h2>
+                </div>
+                <div class="card-body" style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--border-color); background: rgba(239,68,68,0.05);">
+                                <th style="padding: 12px;">Name/Role</th>
+                                <th style="padding: 12px;">Overall Submissions</th>
+                                <th style="padding: 12px;">MTD</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bottom10Body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ORIGINAL CHART AREA -->
+            <div class="card chart-card">
+                <div class="card-header">
+                    <h2><i class="fas fa-chart-area"></i> Cadence Overview</h2>
+                    <div class="card-actions" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                        <select id="chartType" class="period-select" title="Form type to show">
+                            <option value="both" selected>Both (Audits + 1-1)</option>
+                            <option value="audits">Audits Only</option>
+                            <option value="meetings">1-1 Meetings Only</option>
+                        </select>
+                        <select id="chartPeriod" class="period-select">
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly" selected>Monthly</option>
+                            <option value="quarterly">Quarterly</option>
+                        </select>
                     </div>
                 </div>
-            </section>
+                <div class="card-body">
+                    <canvas id="cadenceChart"></canvas>
+                </div>
+            </div>
+
+            <!-- RECENT ACTIVITY -->
+            <div class="card activity-card">
+                <div class="card-header">
+                    <h2><i class="fas fa-history"></i> Recent Activity</h2>
+                    <span class="activity-badge" id="activityCount" style="font-size:0.75rem;color:var(--text-muted);"></span>
+                </div>
+                <div class="card-body">
+                    <ul class="activity-list" id="activityList">
+                        <li class="activity-item" id="activityLoading" style="text-align:center;padding:20px;color:var(--text-muted);">
+                            <i class="fas fa-spinner fa-spin"></i> Loading...
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- TEAM PERFORMANCE -->
+            <div class="card performance-card">
+                <div class="card-header">
+                    <h2><i class="fas fa-users"></i> Team Performance</h2>
+                </div>
+                <div class="card-body">
+                    <div class="team-list" id="teamList"></div>
+                </div>
+            </div>
+        </section>
 
         </div>
         <!-- /tabSummary -->
 
-        <!-- Form section kept identical to original functionality -->
+        <!-- ===== TAB PANEL: FORM ===== -->
         <div class="tab-panel" id="tabForm">
-            <!-- (Your existing form code goes here, unmodified) -->
-        </div>
+            <!-- ========== COUNSELLING CADENCE FORM ========== -->
+            <section class="dashboard-section form-wrap" id="counsellingForm">
+                <div class="section-head">
+                    <div class="section-title">
+                        <div class="section-icon"><i class="fas fa-clipboard-list"></i></div>
+                        <div>
+                            <h2>Counselling Cadence</h2>
+                            <p>Record daily 1-1 &amp; Training sessions and Audits — all fields are mandatory</p>
+                        </div>
+                    </div>
+                    <span class="user-chip" id="formUserLabel">
+                        <i class="fas fa-user"></i> Loading...
+                    </span>
+                </div>
 
+                <div class="form-card">
+                    <!-- ===== TYPE SELECTOR ===== -->
+                    <div class="form-type-selector">
+                        <div class="form-type-option" data-type="1-1 & Training" onclick="window.selectFormType('1-1 & Training')">
+                            <div class="fto-icon handshake"><i class="fas fa-handshake"></i></div>
+                            <h3>1-1 &amp; Training</h3>
+                            <p>Record one-on-one sessions and team meetings</p>
+                        </div>
+                        <div class="form-type-option" data-type="Audits" onclick="window.selectFormType('Audits')">
+                            <div class="fto-icon audits"><i class="fas fa-search"></i></div>
+                            <h3>Audits</h3>
+                            <p>Record audit details and scores</p>
+                        </div>
+                    </div>
+
+                    <!-- ===== 1-1 & TRAINING SECTION ===== -->
+                    <div class="form-section" id="section11">
+                        <form id="form11" onsubmit="return false;">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label><i class="fas fa-globe"></i> Region <span class="required">*</span></label>
+                                    <select id="meetingRegion" required>
+                                        <option value="">Select Region</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label><i class="fas fa-store"></i> Center <span class="required">*</span></label>
+                                    <select id="meetingCenter" required>
+                                        <option value="">Select Center</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label><i class="fas fa-calendar"></i> Meeting Date <span class="required">*</span></label>
+                                    <input type="date" id="meetingDate" required>
+                                </div>
+                                <div class="form-group">
+                                    <label><i class="fas fa-users"></i> Meeting Type <span class="required">*</span></label>
+                                    <select id="meetingType" required>
+                                        <option value="">Select Type</option>
+                                        <option value="One on One">One on One</option>
+                                        <option value="Team Meet">Team Meet</option>
+                                    </select>
+                                </div>
+                                <div class="form-group full-width">
+                                    <label><i class="fas fa-envelope"></i> Meeting Attendees (Email IDs comma separated) <span class="required">*</span></label>
+                                    <input type="text" id="meetingAttendees" required placeholder="email1@pw.live, email2@pw.live">
+                                </div>
+                                <div class="form-group full-width">
+                                    <label><i class="fas fa-file-alt"></i> Discussion Summary / MOM <span class="required">*</span></label>
+                                    <textarea id="meetingSummary" placeholder="Enter meeting summary..." required></textarea>
+                                </div>
+                                <div class="form-group full-width">
+                                    <label><i class="fas fa-link"></i> Recording Link <span class="required">*</span></label>
+                                    <input type="url" id="meetingRecording" required placeholder="https://drive.google.com/...">
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- ===== AUDITS SECTION ===== -->
+                    <div class="form-section" id="sectionAudit">
+                        <form id="formAudit" onsubmit="return false;">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label><i class="fas fa-globe"></i> Region <span class="required">*</span></label>
+                                    <select id="auditRegion" required>
+                                        <option value="">Select Region</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label><i class="fas fa-store"></i> Center <span class="required">*</span></label>
+                                    <select id="auditCenter" required>
+                                        <option value="">Select Center</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label><i class="fas fa-calendar"></i> Audit Date <span class="required">*</span></label>
+                                    <input type="date" id="auditDate" required>
+                                </div>
+                                <div class="form-group">
+                                    <label><i class="fas fa-link"></i> Lead Link <span class="required">*</span></label>
+                                    <input type="url" id="auditLeadLink" required placeholder="https://...">
+                                </div>
+                                <div class="form-group full-width">
+                                    <label><i class="fas fa-envelope"></i> Counsellor Email ID <span class="required">*</span></label>
+                                    <input type="email" id="auditCounsellor" required placeholder="counsellor@pw.live">
+                                </div>
+                                <div class="form-group full-width">
+                                    <label><i class="fas fa-comment"></i> Audit Remarks (With Time Stamp) <span class="required">*</span></label>
+                                    <textarea id="auditRemarks" placeholder="Enter audit remarks with timestamp..." required></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label><i class="fas fa-star"></i> Audit Score <span class="required">*</span></label>
+                                    <select id="auditScore" required>
+                                        <option value="">Select Score</option>
+                                        <option value="Good">Good</option>
+                                        <option value="Average">Average</option>
+                                        <option value="Below Average">Below Average</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- ===== FORM ACTIONS ===== -->
+                    <div class="form-actions" id="formActions">
+                        <button class="btn btn-ghost" onclick="window.resetForm()">
+                            <i class="fas fa-undo"></i> Reset
+                        </button>
+                        <button class="btn btn-primary btn-submit" id="counselSubmitBtn" onclick="window.submitForm()" disabled>
+                            <span class="btn-text"><i class="fas fa-paper-plane"></i> Submit</span>
+                            <span class="btn-loader"><i class="fas fa-spinner fa-spin"></i> Submitting...</span>
+                        </button>
+                    </div>
+
+                    <!-- ===== SUCCESS ===== -->
+                    <div class="submit-success" id="counselSuccess">
+                        <div class="success-icon"><i class="fas fa-check-circle"></i></div>
+                        <h3>Response Submitted!</h3>
+                        <p>Thank you! Your counselling cadence response has been recorded.</p>
+                        <button class="btn btn-primary" onclick="window.resetForm()">
+                            <i class="fas fa-plus"></i> Submit Another Response
+                        </button>
+                    </div>
+
+                    <div class="form-error" id="counselFormError"></div>
+                </div>
+            </section>
+        </div>
+        <!-- /tabForm -->
+
+        <!-- FOOTER -->
+        <footer class="footer">
+            <div class="footer-left">
+                <span>&copy; 2026 CADENCE Report. All rights reserved.</span>
+            </div>
+            <div class="footer-right">
+                <span>Version 1.0.0</span>
+                <i class="fas fa-circle" style="color:#22c55e;font-size:6px;vertical-align:middle;"></i>
+                <span>System Online</span>
+            </div>
+        </footer>
     </main>
+
+    <!-- Notification Toast -->
+    <div class="toast-container" id="toastContainer"></div>
 
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="users.js"></script>
+    <script src="counselling-form.js"></script>
     <script src="script.js"></script>
+
+    <!-- ===== VIEW NAVIGATION (Summary <-> Form) ===== -->
+    <script>
+        function showTab(tab) {
+            const summary = document.getElementById('tabSummary');
+            const form = document.getElementById('tabForm');
+            if (summary) summary.classList.toggle('active', tab === 'summary');
+            if (form) form.classList.toggle('active', tab === 'form');
+
+            // Topbar button acts as a toggle: "Fill Form" on home, "Home" on form
+            const fillBtn = document.getElementById('fillFormBtn');
+            if (fillBtn) {
+                const isForm = tab === 'form';
+                fillBtn.innerHTML = isForm
+                    ? '<i class="fas fa-home"></i><span style="font-size:0.8rem;font-weight:600;">Home</span>'
+                    : '<i class="fas fa-clipboard-list"></i><span style="font-size:0.8rem;font-weight:600;">Fill Form</span>';
+                fillBtn.title = isForm ? 'Go back to Home' : 'Fill Counselling Form';
+            }
+
+            window.scrollTo(0, 0);
+            // Re-fit Chart.js after panel becomes visible
+            setTimeout(() => window.dispatchEvent(new Event('resize')), 60);
+        }
+
+        function toggleView() {
+            const form = document.getElementById('tabForm');
+            showTab(form && form.classList.contains('active') ? 'summary' : 'form');
+        }
+        window.showTab = showTab;
+        window.toggleView = toggleView;
+    </script>
 </body>
 </html>
