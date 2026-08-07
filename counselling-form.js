@@ -441,12 +441,21 @@ async function submitForm() {
     }
 }
 
-// ============ DATE HELPER ============
+// ============ DATE HELPER (UPDATED FOR IST) ============
 function formatDateToDMY(dateStr) {
     if (!dateStr) return '';
     const parts = dateStr.split('-');
     if (parts.length !== 3) return dateStr;
     return `${parts[2]}/${parts[1]}/${parts[0]}`; // dd/mm/yyyy
+}
+
+function getISTTimestamp() {
+    const now = new Date();
+    // Offset standard UTC time by 5 hours and 30 minutes to match IST accurately
+    const istOffset = 5.5 * 60 * 60 * 1000; 
+    const istTime = new Date(now.getTime() + istOffset);
+    // Replace the 'Z' with explicit +05:30 offset
+    return istTime.toISOString().replace('Z', '+05:30');
 }
 
 // ============ COLLECT 1-1 FORM DATA ============
@@ -481,7 +490,7 @@ function collectForm11() {
         meetingSummary: summary,
         meetingRecording: recording,
         submittedBy: session.email,
-        submittedAt: new Date().toISOString()
+        submittedAt: getISTTimestamp() // Updated to perfectly inject IST
     };
 }
 
@@ -517,7 +526,7 @@ function collectFormAudit() {
         auditRemarks: remarks,
         auditScore: score,
         submittedBy: session.email,
-        submittedAt: new Date().toISOString()
+        submittedAt: getISTTimestamp() // Updated to perfectly inject IST
     };
 }
 
