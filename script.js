@@ -5,19 +5,15 @@
 
 document.addEventListener('DOMContentLoaded', initDashboard);
 
-// Also run if DOMContentLoaded already fired
 if (document.readyState !== 'loading') initDashboard();
 
 async function initDashboard() {
-    // Prevent double-init
     if (window.__cadenceInitDone) return;
     window.__cadenceInitDone = true;
 
-    // ========== THEME (from Settings > Appearance) ==========
     const savedTheme = localStorage.getItem('cadence-theme') || 'dark';
     document.documentElement.setAttribute('data-theme', savedTheme);
 
-    // ========== SESSION CHECK ==========
     const session = JSON.parse(localStorage.getItem('cadence-session') || '{}');
     if (!session.email) {
         window.location.href = 'login.html';
@@ -26,9 +22,7 @@ async function initDashboard() {
 
     try {
 
-    // =============================================
     // 1. FETCH LIVE DATA FROM GOOGLE SHEETS
-    // =============================================
     let sheetRows = [];
     let orgData = { regions: [] };
 
@@ -40,27 +34,20 @@ async function initDashboard() {
     } catch (error) {
         console.error('Failed to fetch sheet data:', error);
         showToast('Failed to load sheet data. Using cached data.', 'error');
-        // Try to load from localStorage
         const cached = localStorage.getItem('cadence-org-data');
-        if (cached) {
-            orgData = JSON.parse(cached);
-        }
+        if (cached) orgData = JSON.parse(cached);
     }
 
-    // Region id → name map (module-level access for the overview chart)
     window._regionById = {};
     (orgData.regions || []).forEach(r => { window._regionById[r.id] = r.name; });
 
-    // Build org data from sheet rows
     function buildOrgDataFromSheet(rows) {
         const regions = {};
         const allUsers = {};
-        // Track which BHs/RCLs each hierarchy user manages
-        const rbhManagedBHs = {};   // rbhEmail -> Set of bhEmail
-        const rbhManagedRCLs = {};  // rbhEmail -> Set of rclEmail
-        const rclManagedBHs = {};   // rclEmail -> Set of bhEmail
+        const rbhManagedBHs = {};   
+        const rbhManagedRCLs = {};  
+        const rclManagedBHs = {};   
 
-        // First pass: collect all users and their hierarchy
         rows.forEach(row => {
             const email = row.mail_id ? row.mail_id.toLowerCase().trim() : '';
             const rbhEmail = row.RBH ? row.RBH.toLowerCase().trim() : '';
@@ -69,23 +56,19 @@ async function initDashboard() {
             const region = row.Region || 'Unknown';
             const center = row.Center || '';
 
-            // Track RBH → BH mapping
             if (rbhEmail && rbhEmail !== '-' && bhEmail && bhEmail !== '-') {
                 if (!rbhManagedBHs[rbhEmail]) rbhManagedBHs[rbhEmail] = new Set();
                 rbhManagedBHs[rbhEmail].add(bhEmail);
             }
-            // Track RBH → RCL mapping
             if (rbhEmail && rbhEmail !== '-' && rclEmail && rclEmail !== '-') {
                 if (!rbhManagedRCLs[rbhEmail]) rbhManagedRCLs[rbhEmail] = new Set();
                 rbhManagedRCLs[rbhEmail].add(rclEmail);
             }
-            // Track RCL → BH mapping
             if (rclEmail && rclEmail !== '-' && bhEmail && bhEmail !== '-') {
                 if (!rclManagedBHs[rclEmail]) rclManagedBHs[rclEmail] = new Set();
                 rclManagedBHs[rclEmail].add(bhEmail);
             }
 
-            // Store user
             if (email) {
                 const empTypeRaw = (row.employee_type || 'CL').toUpperCase();
                 allUsers[email] = {
@@ -100,7 +83,6 @@ async function initDashboard() {
                 };
             }
 
-            // Store RBH
             if (rbhEmail && rbhEmail !== '-' && !allUsers[rbhEmail]) {
                 allUsers[rbhEmail] = {
                     email: rbhEmail,
@@ -112,7 +94,6 @@ async function initDashboard() {
                 };
             }
 
-            // Store RCL
             if (rclEmail && rclEmail !== '-' && !allUsers[rclEmail]) {
                 allUsers[rclEmail] = {
                     email: rclEmail,
@@ -123,7 +104,6 @@ async function initDashboard() {
                 };
             }
 
-            // Store BH
             if (bhEmail && bhEmail !== '-' && !allUsers[bhEmail]) {
                 allUsers[bhEmail] = {
                     email: bhEmail,
@@ -133,7 +113,6 @@ async function initDashboard() {
                 };
             }
 
-            // Build region structure
             if (!regions[region]) {
                 regions[region] = {
                     id: region.toLowerCase().replace(/[^a-z0-9]/g, '-'),
@@ -146,7 +125,6 @@ async function initDashboard() {
 
             const regionData = regions[region];
 
-            // Add RCL
             if (rclEmail && rclEmail !== '-' && !regionData.rcls[rclEmail]) {
                 regionData.rcls[rclEmail] = {
                     id: rclEmail,
@@ -155,7 +133,6 @@ async function initDashboard() {
                 };
             }
 
-            // Add BH
             if (bhEmail && bhEmail !== '-' && !regionData.bhs[bhEmail]) {
                 regionData.bhs[bhEmail] = {
                     id: bhEmail,
@@ -163,13 +140,11 @@ async function initDashboard() {
                     rcl: rclEmail,
                     centers: []
                 };
-                // Link BH to RCL
                 if (rclEmail && rclEmail !== '-' && regionData.rcls[rclEmail]) {
                     regionData.rcls[rclEmail].bhs.push(bhEmail);
                 }
             }
 
-            // Add center
             if (center && center !== '-') {
                 const centerObj = {
                     id: email || center,
@@ -186,14 +161,12 @@ async function initDashboard() {
                 };
 
                 regionData.centers.push(centerObj);
-
                 if (bhEmail && bhEmail !== '-' && regionData.bhs[bhEmail]) {
                     regionData.bhs[bhEmail].centers.push(centerObj);
                 }
             }
         });
 
-        // Fill managedBHs / managedRCLs for hierarchy users
         Object.keys(rbhManagedBHs).forEach(rbhEmail => {
             if (allUsers[rbhEmail]) allUsers[rbhEmail].managedBHs = [...rbhManagedBHs[rbhEmail]];
         });
@@ -221,9 +194,7 @@ async function initDashboard() {
         return { regions: regionsArray, users: allUsers };
     }
 
-    // =============================================
     // 2. ROLE DEFINITIONS & HIERARCHY
-    // =============================================
     const ROLES = {
         admin: { level: 5, label: 'Admin', icon: 'fas fa-user-shield', canSee: 'everything' },
         rbh:   { level: 4, label: 'RBH',   icon: 'fas fa-city',        canSee: 'all_rcl_bh_cl' },
@@ -240,9 +211,7 @@ async function initDashboard() {
         return name.toLowerCase().replace(/[^a-z0-9]/g, '-');
     }
 
-    // =============================================
     // 3. HELPER: FLATTEN & FILTER DATA
-    // =============================================
     function getAllCenters(regionFilter, bhFilter, rclFilter, centerFilter) {
         let centers = [];
         orgData.regions.forEach(region => {
@@ -320,15 +289,9 @@ async function initDashboard() {
             finalCenter || ''
         );
 
-        if (allowedBHs && allowedBHs.length > 0) {
-            centers = centers.filter(c => allowedBHs.includes(c.bhId));
-        }
-        if (allowedCenters && allowedCenters.length > 0) {
-            centers = centers.filter(c => allowedCenters.includes(c.id));
-        }
-        if (cl) {
-            centers = centers.filter(c => c.cl === cl);
-        }
+        if (allowedBHs && allowedBHs.length > 0) centers = centers.filter(c => allowedBHs.includes(c.bhId));
+        if (allowedCenters && allowedCenters.length > 0) centers = centers.filter(c => allowedCenters.includes(c.id));
+        if (cl) centers = centers.filter(c => c.cl === cl);
 
         return centers;
     }
@@ -366,13 +329,10 @@ async function initDashboard() {
                 monthly.overdue[i] += c.monthly.overdue[i];
             }
         });
-
         return { agg, monthly };
     }
 
-    // =============================================
     // 4. POPULATE FILTER DROPDOWNS
-    // =============================================
     function getAllowedBHs() {
         const user = session;
         const role = ROLES[currentRole];
@@ -517,9 +477,7 @@ async function initDashboard() {
         return null;
     }
 
-    // =============================================
     // 5. CASCADE
-    // =============================================
     function onFilterChange(changedFilter) {
         const region = document.getElementById('filterRegion').value;
         if (changedFilter === 'region' || !changedFilter) {
@@ -553,9 +511,7 @@ async function initDashboard() {
         groupEl.style.display = '';
     }
 
-    // =============================================
     // 6. ROLE-BASED FILTER LOCKING
-    // =============================================
     function applyRoleRestrictions() {
         const user = session;
         const role = ROLES[currentRole];
@@ -596,9 +552,7 @@ async function initDashboard() {
         }
     }
 
-    // =============================================
     // 7. UPDATE DASHBOARD 
-    // =============================================
     function updateDashboard() {
         const region = document.getElementById('filterRegion').value;
         const bh = document.getElementById('filterBH').value;
@@ -826,9 +780,7 @@ async function initDashboard() {
             </div>`;
     }
 
-    // =============================================
     // 8. ANIMATED COUNTER
-    // =============================================
     function animateCounter(elementId, target, duration = 800) {
         const el = document.getElementById(elementId);
         if (!el) return;
@@ -847,9 +799,7 @@ async function initDashboard() {
         }, 16);
     }
 
-    // =============================================
     // 9. CHART INITIALIZATION
-    // =============================================
     function initChart() {
         const ctx = document.getElementById('cadenceChart');
         if (!ctx) return;
@@ -904,9 +854,7 @@ async function initDashboard() {
         window.cadenceChart = cadenceChart;
     }
 
-    // =============================================
     // 10. PROFILE DROPDOWN & SETTINGS MODAL
-    // =============================================
     function initProfile() {
         const session = JSON.parse(localStorage.getItem('cadence-session') || '{}');
         const email = session.email || '';
@@ -952,9 +900,7 @@ async function initDashboard() {
         window.location.href = 'login.html';
     });
 
-    // =============================================
     // 11. EVENT LISTENERS
-    // =============================================
     document.getElementById('filterRegion').addEventListener('change', () => onFilterChange('region'));
     document.getElementById('filterBH').addEventListener('change', () => onFilterChange('bh'));
     document.getElementById('filterRCL').addEventListener('change', () => onFilterChange('rcl'));
@@ -1249,8 +1195,10 @@ function processResponses(rows, roleMap, fromDate, toDate, visibleEmails) {
         if (!userStats[email]) {
             userStats[email] = { 
                 email, 
-                audits: 0, 
-                meetings: 0, 
+                auditsTotal: 0, 
+                auditsPast: 0,
+                meetingsTotal: 0, 
+                meetingsPast: 0,
                 auditDates: new Set(), 
                 auditWeeks: new Set(),
                 meetingDates: new Set(), 
@@ -1262,14 +1210,22 @@ function processResponses(rows, roleMap, fromDate, toDate, visibleEmails) {
         const weekIso = getISOWeekString(rowDate);
 
         if (formType === 'Audits') {
-            s.audits++;
+            s.auditsTotal++;
             s.auditDates.add(dateIso);
-            if (weekIso !== currentWeekStr) s.auditWeeks.add(weekIso);
+            // Exclude current week from the past week aggregate total and divisor 
+            if (weekIso !== currentWeekStr) {
+                s.auditsPast++;
+                s.auditWeeks.add(weekIso);
+            }
         }
         else if (formType === '1-1 & Training') {
-            s.meetings++;
+            s.meetingsTotal++;
             s.meetingDates.add(dateIso);
-            if (weekIso !== currentWeekStr) s.meetingWeeks.add(weekIso);
+            // Exclude current week from the past week aggregate total and divisor 
+            if (weekIso !== currentWeekStr) {
+                s.meetingsPast++;
+                s.meetingWeeks.add(weekIso);
+            }
         }
     });
 
@@ -1302,24 +1258,22 @@ function processResponses(rows, roleMap, fromDate, toDate, visibleEmails) {
         const role = (roleMap[s.email] || 'CL').toUpperCase();
         
         const aDays = Math.max(1, s.auditDates.size);
-        const aWeeks = Math.max(1, s.auditWeeks.size); 
-        const aDailyAvg = +((s.audits / aDays).toFixed(1));
-        const aWeeklyAvg = +((s.audits / aWeeks).toFixed(1));
+        const aDailyAvg = +((s.auditsTotal / aDays).toFixed(1));
+        const aWeeklyAvg = s.auditWeeks.size > 0 ? +((s.auditsPast / s.auditWeeks.size).toFixed(1)) : 0;
 
         const mDays = Math.max(1, s.meetingDates.size);
-        const mWeeks = Math.max(1, s.meetingWeeks.size);
-        const mDailyAvg = +((s.meetings / mDays).toFixed(1));
-        const mWeeklyAvg = +((s.meetings / mWeeks).toFixed(1));
+        const mDailyAvg = +((s.meetingsTotal / mDays).toFixed(1));
+        const mWeeklyAvg = s.meetingWeeks.size > 0 ? +((s.meetingsPast / s.meetingWeeks.size).toFixed(1)) : 0;
 
         return {
             email: s.email,
             role: roleMap[s.email] || 'CL',
-            noOfAudits: s.audits,
+            noOfAudits: s.auditsTotal,
             auditsDailyAvg: aDailyAvg,
             auditDayStatus: getAuditDayStatus(role, aDailyAvg),
             auditsWeeklyAvg: aWeeklyAvg,
             auditWeekStatus: getAuditWeekStatus(role, aWeeklyAvg),
-            noOfMeetings: s.meetings,
+            noOfMeetings: s.meetingsTotal,
             meetingsDailyAvg: mDailyAvg,
             meetingDayStatus: getMeetingDayStatus(role, mDailyAvg),
             meetingsWeeklyAvg: mWeeklyAvg,
@@ -1344,17 +1298,17 @@ function renderSummaryTable(tbody, data) {
             <td style="padding:10px 12px;font-weight:500;color:var(--text-primary);">${escHtml(row.email)}</td>
             <td style="padding:10px 12px;"><span style="padding:3px 10px;border-radius:20px;font-size:.75rem;font-weight:600;background:var(--accent-blue)15;color:var(--accent-blue);">${escHtml(row.role)}</span></td>
             
-            <td class="summary-num">${row.noOfAudits}</td>
-            <td class="summary-num">${row.auditsDailyAvg}</td>
-            <td style="padding:10px 12px;text-align:center;">${badge(row.auditDayStatus)}</td>
-            <td class="summary-num">${row.auditsWeeklyAvg}</td>
-            <td style="padding:10px 12px;text-align:center;">${badge(row.auditWeekStatus)}</td>
+            <td class="summary-num col-audit border-left-thick">${row.noOfAudits}</td>
+            <td class="summary-num col-audit">${row.auditsDailyAvg}</td>
+            <td class="col-audit" style="padding:10px 12px;text-align:center;">${badge(row.auditDayStatus)}</td>
+            <td class="summary-num col-audit">${row.auditsWeeklyAvg}</td>
+            <td class="col-audit" style="padding:10px 12px;text-align:center;">${badge(row.auditWeekStatus)}</td>
             
-            <td class="summary-num">${row.noOfMeetings}</td>
-            <td class="summary-num">${row.meetingsDailyAvg}</td>
-            <td style="padding:10px 12px;text-align:center;">${badge(row.meetingDayStatus)}</td>
-            <td class="summary-num">${row.meetingsWeeklyAvg}</td>
-            <td style="padding:10px 12px;text-align:center;">${badge(row.meetingWeekStatus)}</td>`;
+            <td class="summary-num col-meet border-left-thick">${row.noOfMeetings}</td>
+            <td class="summary-num col-meet">${row.meetingsDailyAvg}</td>
+            <td class="col-meet" style="padding:10px 12px;text-align:center;">${badge(row.meetingDayStatus)}</td>
+            <td class="summary-num col-meet">${row.meetingsWeeklyAvg}</td>
+            <td class="col-meet" style="padding:10px 12px;text-align:center;">${badge(row.meetingWeekStatus)}</td>`;
         tbody.appendChild(tr);
     });
 }
