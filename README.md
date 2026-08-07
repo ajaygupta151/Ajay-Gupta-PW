@@ -38,7 +38,7 @@ A client-side (no-build) reporting dashboard for tracking **counselling cadence*
         ┌──────┴──────────────────────────┐
         │  Google Apps Script Web Apps    │
         │  · form-submit.gs  (POST/GET)   │
-        │  · otp-mail.gs      (POST)      │
+        │  · otp.gs           (POST + GET)    │
         └─────────────────────────────────┘
 ```
 
@@ -60,6 +60,7 @@ There is no CORS preflight problem because:
 | `settings.html` / `settings.js` / `settings.css` | Appearance, profile, notifications, security (password change w/ OTP), language/region, data storage & export/import |
 | `counselling-form.html` | Standalone copy of the counselling form (older duplicate; the live form is inside `index.html`) |
 | `counselling-form.js` | Form logic: dropdowns, validation, IST timestamps, POST to Apps Script |
+| `otp.gs` | Apps Script web app: OTP send/verify (Sheet2 column H) + password rewrite in Sheet2; answers GET and POST |
 | `assets/pw-logo.svg` | Logo |
 | `.github/workflows/` | GitHub Pages deployment (Jekyll action, works fine for static files) |
 
@@ -96,6 +97,8 @@ Separate tab (gid `1181913691`) that is the **source of truth for login**:
 | `mail_id` | Allowed login email |
 | `role` | `admin` / `rbh` / `rcl` / `bh` / `cl` |
 | `password` | Password for that id |
+| `H` (8) | **OTP code** (written by `otp.gs` on every send, cleared after password change) |
+| `I` (9) | **OTP sent-at timestamp** (used for the 5-minute expiry check) |
 
 **Strict-login rule (important):** when Sheet2 has rows, **only emails listed in Sheet2 can log in**. Hierarchy emails that exist only in Sheet1 are removed from the user DB. So Sheet1 defines *who is in the org chart*, Sheet2 defines *who can log in and with what role/password*.
 
@@ -122,7 +125,14 @@ Both are configured as **constants at the top of the JS files**. If the Apps Scr
 |---|---|---|
 | `FORM_CONFIG.WEBAPP_URL` | `counselling-form.js` | POST new form responses |
 | `SUMMARY_CONFIG.WEBAPP_URL` | `script.js` | GET `?action=responses` → JSON list of all responses |
-| `OTP_MAIL_ENDPOINT` | `users.js` | POST `{action:'send', email, otp, purpose}` and `{action:'verify', email, otp}` |
+| `OTP_MAIL_ENDPOINT` | `users.js` | POST `{action:'send', email, otp, purpose}`, `{action:'verify', email, otp}`, `{action:'updatePassword', email, newPassword, otp}` |
+
+The OTP web app (`otp.gs`, repo root) answers **both GET and POST** with the same actions:
+
+- `send` → writes the OTP into **Sheet2 column H** (timestamp in column I) next to the email, then emails it.
+- `verify` → checks the OTP against Sheet2 column H (5-min expiry via column I).
+- `updatePassword` → (optional OTP cross-check against H) **rewrites the password column in Sheet2**, then clears the used OTP.
+- GET form: `?action=send&email=…&otp=…` etc. (POST is preferred; GET is handy for testing / status: `?action=status`).
 
 Expected Apps Script behaviors (based on how the frontend calls them):
 
@@ -151,9 +161,9 @@ Expected Apps Script behaviors (based on how the frontend calls them):
 ### Forgot / change password (OTP)
 
 - `generateOTP()` → 6-digit random code.
-- `sendOTP()` stores the OTP locally (`cadence-otp`) AND calls the Apps Script mail endpoint.
-- `verifyOTP()` checks locally, enforces **5-minute expiry**, clears it, then notifies the mail script.
-- `changeUserPassword()` writes the new password into `localStorage['cadence-users']` (per-user override; does NOT edit the sheet).
+- `sendOTP()` stores the OTP locally (`cadence-otp`) AND calls the Apps Script mail endpoint, which also writes the OTP into Sheet2 column H.
+- `verifyOTP()` checks locally, enforces **5-minute expiry**, clears it, then notifies the mail script (server-side verify checks Sheet2 H).
+- `changeUserPassword()` writes the new password into `localStorage['cadence-users']` (per-user override) **and** calls the web app's `updatePassword` action so the password is **rewritten in Sheet2** — the sheet stays the source of truth. If the sheet sync fails, a `warning` is returned and surfaced as an info toast.
 
 > 🔐 **Security note:** passwords are stored in plain text (sheet + localStorage). This is acceptable only for an internal tool; do not reuse these patterns for anything public.
 
@@ -310,7 +320,7 @@ Two form types:
 For a fresh copy of this project:
 
 1. **Sheets** — make sure the hierarchy sheet and Sheet2 are *Published to the web as CSV* and the URLs in `users.js` (`SHEET_CSV_URL`, `SHEET2_CSV_URL`) point to them. (Sheet2 `gid` in the URL must match the roles tab.)
-2. **Apps Script web apps** — deploy `sheet-form-submit.gs` and `otp-mail.gs` with **"Anyone" access**, paste the `/exec` URLs into:
+2. **Apps Script web apps** — deploy `sheet-form-submit.gs` and `otp.gs` (repo root) with **"Anyone" access**, paste the `/exec` URLs into:
    - `counselling-form.js` → `FORM_CONFIG.WEBAPP_URL`
    - `script.js` → `SUMMARY_CONFIG.WEBAPP_URL`
    - `users.js` → `OTP_MAIL_ENDPOINT`
@@ -352,5 +362,5 @@ Then open `http://localhost:8080/login.html`. (Opening `file://` directly usuall
 
 - Open the browser console: login and dashboard print styled `%c CADENCE ... Loaded` banners.
 - Sheet fetch failures fall back to `localStorage` caches (`cadence-sheet-data`, `cadence-sheet2-data`).
-- If OTP mail doesn't arrive, check the Apps Script execution log (`otp-mail.gs`) and spam folder; the OTP is also printed to the browser console as a dev fallback.
+- If OTP mail doesn't arrive, check the Apps Script execution log (`otp.gs`) and spam folder; the OTP is also printed to the browser console as a dev fallback.
 - If submissions "succeed" but don't appear: confirm `action=responses` returns the new rows and that `Submitted By`/dates match the visibility rules of the logged-in role.

@@ -393,8 +393,9 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.disabled = true;
 
         try {
-            // Update password in dynamic database
-            const result = await changeUserPassword(currentResetEmail, newPass);
+            // Update password in dynamic database (local + Sheet2 via web app)
+            const enteredOtp = Array.from(otpInputs).map(i => i.value).join('');
+            const result = await changeUserPassword(currentResetEmail, newPass, enteredOtp);
             
             if (!result.success) {
                 confirmError.textContent = result.error;
@@ -402,6 +403,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 btn.querySelector('.btn-loader').style.display = 'none';
                 btn.disabled = false;
                 return;
+            }
+
+            if (result.warning) {
+                showToast(result.warning, 'info');
             }
 
             showCard('successCard');

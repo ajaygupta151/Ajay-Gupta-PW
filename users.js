@@ -469,8 +469,17 @@ async function needsPasswordChange(email) {
 
 /**
  * Change user password
+ *
+ * Saves locally AND rewrites the password in Sheet2 via the OTP web app
+ * (otp.gs, action 'updatePassword') so the sheet stays the source of truth.
+ *
+ * @param {string} email       User's email
+ * @param {string} newPassword The new password
+ * @param {string} [otp]       The verified OTP (server cross-checks it against
+ *                             Sheet2 column H before rewriting the password)
+ * @returns {Promise<{success: boolean, warning?: string, error?: string}>}
  */
-async function changeUserPassword(email, newPassword) {
+async function changeUserPassword(email, newPassword, otp) {
     const users = await buildUsersDatabase();
     const normalizedEmail = email.toLowerCase().trim();
     
@@ -478,10 +487,34 @@ async function changeUserPassword(email, newPassword) {
         users[normalizedEmail].password = newPassword;
         users[normalizedEmail].isDefaultPassword = false;
         
-        // Save updated users to localStorage
+        // Save updated users to localStorage (login works even offline)
         localStorage.setItem('cadence-users', JSON.stringify(users));
         
-        return { success: true };
+        // Rewrite the password in Sheet2 through the OTP web app
+        let warning = null;
+        if (OTP_MAIL_ENDPOINT) {
+            try {
+                const response = await fetch(OTP_MAIL_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify({
+                        action: 'updatePassword',
+                        email: normalizedEmail,
+                        newPassword: newPassword,
+                        otp: otp || ''
+                    })
+                });
+                const data = await response.json().catch(() => ({}));
+                if (data.success === false) {
+                    warning = data.message || 'Password saved locally but could not be synced to the sheet.';
+                }
+            } catch (error) {
+                console.error('Sheet password sync failed:', error);
+                warning = 'Password saved locally but could not be synced to the sheet.';
+            }
+        }
+        
+        return warning ? { success: true, warning } : { success: true };
     }
     
     return { success: false, error: 'User not found' };
@@ -534,14 +567,16 @@ async function getUserHierarchy(email) {
 // ============================================
 // OTP EMAIL — Apps Script Web App URL
 // --------------------------------------------
-// Deploy the included otp-mail.gs as a Google
+// Deploy the included otp.gs as a Google
 // Apps Script Web App ("Anyone" access), then
 // paste the /exec URL here:
 //   https://script.google.com/macros/s/XXXXX/exec
 // OTP mails are sent from the Apps Script
 // owner's Gmail account.
+// The script also stores OTPs in Sheet2 column H
+// and rewrites passwords on reset (action 'updatePassword').
 // ============================================
-const OTP_MAIL_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwGaN9ljjI2mm3xcx3hQporN6cbZ7KqzBYUInrb9_2yaiIIKKFMIiuN6zYVhmk2Z_qBOw/exec'; // e.g. 'https://script.google.com/macros/s/XXXXX/exec'
+const OTP_MAIL_ENDPOINT = 'https://script.google.com/macros/s/AKfycbx1JzhZEkNDbbv8wOAXvT7KavU4CunZP38o2PsBb1qBMwEhy8hpNIIFRSoU4A-IqXHtxw/exec'; // otp.gs web app (GET + POST)
 
 /**
  * Generate OTP for password reset

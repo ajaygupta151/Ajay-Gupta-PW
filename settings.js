@@ -362,8 +362,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // Step 3: update password
-            const result = await changeUserPassword(session.email, newPw);
+            // Step 3: update password (local + Sheet2 via web app)
+            const result = await changeUserPassword(session.email, newPw, enteredOtp);
             
             if (!result.success) {
                 showToast(result.error || 'Failed to update password', 'error');
@@ -371,6 +371,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 btn.querySelector('.btn-loader').style.display = 'none';
                 btn.disabled = false;
                 return;
+            }
+
+            if (result.warning) {
+                showToast(result.warning, 'info');
             }
 
             // Update session to reflect password change
