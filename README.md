@@ -201,7 +201,7 @@ ROLES = {
 - `Forms` — total forms by the subtree
 - `Audits` / `1-1` — split of those forms
 
-Counts come from `_formCountByEmail` (built from all response rows).
+Counts come from `_formCountByEmail` (rebuilt from the current unit + date filtered rows on every filter change, so the tree follows the top filters).
 
 ---
 
@@ -215,28 +215,50 @@ Counts come from `_formCountByEmail` (built from all response rows).
 - Single-option dropdowns are auto-selected (`autoSelectOrShow`).
 - Filters **locked by role** are disabled (`applyRoleRestrictions`), e.g. a BH can never change Region or BH.
 
-### 8.2 KPI cards (custom dashboard)
+### 8.2 Unified top filters
+
+The **top filter bar** — `customStartDate` / `customEndDate` + Region / BH / RCL / Center / CL — drives **every** dashboard block. All blocks re-render on any filter change (and on date changes) via `refreshAllFromFilters()`, which reads the filter state once through `getTopFilterState()` and reuses a cached copy of the raw response rows (`_summaryCache`), so no re-fetch is needed:
+
+- **Summary table** — role-based visible emails (`getSummaryVisibleEmails`) ∩ rows passing the unified row filter (`rowMatchesUnifiedFilters`, unit + date).
+- **KPI cards, trend/region charts, Top/Bottom 10** — row-level filtering via `rowMatchesUnifiedFilters` (date + unit scope).
+- **Cadence overview chart** — same unified row filter applied per row.
+- **Recent activity** — respects the unit scope (Region/BH/RCL/Center/CL) but is inherently "today", so the date range is not applied.
+- **Org-tree form counts** (`_formCountByEmail`) — rebuilt from unit + date filtered rows.
+
+`rowMatchesUnifiedFilters(row)` maps a row to the hierarchy using:
+- Date — the row's `Audit Date` / `Meeting Date`.
+- Region — the row's own `Region (Audit)` / `Region (1-1)` field (fallback: submitter's Sheet2 region).
+- BH / RCL — the submitter's Sheet2 `BH` / `RCL` (fallback: the row's center name → Sheet2 mapping).
+- Center — the row's center (or submitter's center) matching the selected center's name.
+- CL — the submitter email equals the selected CL.
+
+The default date range is month-to-date (`1st of current month → today`), set by `initCounsellingSummary`; empty date fields mean "no date filter".
+
+### 8.3 KPI cards (custom dashboard)
 
 | KPI | Meaning |
 |---|---|
-| Filtered Submissions | Rows matching the custom start/end date + region filter |
-| Overall Submissions | All rows (ignores date/region filters) |
-| MTD Submissions | Rows in the current calendar month |
-| Members (BH+CL+RCL+RBH) | Distinct roles among filtered rows |
+| Filtered Submissions | Rows in the current unit scope (Region/BH/RCL/Center/CL) **and** within the start/end date range |
+| Overall Submissions | Rows in the current unit scope, any date |
+| MTD Submissions | Rows in the current calendar month within the unit scope |
+| Members (BH+CL+RCL+RBH) | Distinct roles among the date-filtered rows |
+| Submitted by Me | Rows submitted by the logged-in user **within the filter scope** (unit + date) |
+| 1-1 Meetings Done by Me | The logged-in user's `1-1 & Training` rows within the filter scope |
+| Audits Done by Me | The logged-in user's `Audits` rows within the filter scope |
 
-### 8.3 Charts
+### 8.4 Charts
 
-1. **Daily Form Submissions Trend** (`customTrendChart`) — line chart of audits vs 1-1 per day within the custom date range.
-2. **Region-Wise Form Submissions** (`customRegionChart`) — bar chart of filtered submissions per region.
+1. **Daily Form Submissions Trend** (`customTrendChart`) — line chart of audits vs 1-1 per day within the unified filter scope.
+2. **Region-Wise Form Submissions** (`customRegionChart`) — bar chart of filtered submissions per region; **when a Region filter is set it switches to center-wise** (one bar per center in that region) and the card title changes to "Center-Wise Form Submissions".
 3. **Cadence Overview** (`cadenceChart`) — monthly/weekly/quarterly lines:
    - Region Audits, Region 1-1 & Training
    - "Me" (current user's submissions)
    - "Selected BH/RCL/CL" (whichever filter is set)
-4. **Top / Bottom 10 Performers** — users with roles `BH/CL/RCL/CM`, ranked by overall submissions (MTD shown too).
+4. **Top / Bottom 10 Performers** — users with roles `BH/CL/RCL/CM`, ranked by submissions within the unified filter scope (MTD shown too).
 
-### 8.4 Recent Activity
+### 8.5 Recent Activity
 
-Lists today's submissions (from `Submitted At`) newest-first, max 10, with avatar, action text, center, and relative time (`getTimeAgo`).
+Lists today's submissions (from `Submitted At`) newest-first, max 10, within the current unit scope, with avatar, action text, center, and relative time (`getTimeAgo`).
 
 ---
 
@@ -272,6 +294,7 @@ Notes:
 - The **current week is excluded** from weekly averages (so the "past week" is a complete week).
 - Dates are parsed flexibly: `dd/mm/yyyy` or ISO (`parseDateFlexible`).
 - The From/To date inputs default to **first of current month → today**.
+- **Responsive table:** the **Email** and **Role** columns are frozen (sticky) and stay visible while the rest of the table scrolls horizontally inside the card on narrow screens (`min-width: 1420px` on the table, `overflow-x: auto` on the card). Headers wrap (`white-space: normal`) and the frozen columns use opaque backgrounds + a 2px separator on the Role column.
 
 ---
 

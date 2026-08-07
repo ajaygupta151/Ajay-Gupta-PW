@@ -142,6 +142,18 @@
                 <div class="kpi-icon purple"><i class="fas fa-users"></i></div>
                 <div class="kpi-info"><h3 id="newKpiMembers">0</h3><p>Members (BH+CL+RCL+RBH)</p></div>
             </div>
+            <div class="kpi-card" data-aos="fade-up">
+                <div class="kpi-icon blue"><i class="fas fa-user-check"></i></div>
+                <div class="kpi-info"><h3 id="newKpiMeSubmitted">0</h3><p>Submitted by Me</p></div>
+            </div>
+            <div class="kpi-card" data-aos="fade-up">
+                <div class="kpi-icon green"><i class="fas fa-handshake"></i></div>
+                <div class="kpi-info"><h3 id="newKpiMeMeetings">0</h3><p>1-1 Meetings Done by Me</p></div>
+            </div>
+            <div class="kpi-card" data-aos="fade-up">
+                <div class="kpi-icon orange"><i class="fas fa-clipboard-check"></i></div>
+                <div class="kpi-info"><h3 id="newKpiMeAudits">0</h3><p>Audits Done by Me</p></div>
+            </div>
         </section>
 
         <!-- ========== COUNSELLING SUMMARY SECTION ========== -->
@@ -151,24 +163,11 @@
                     <i class="fas fa-clipboard-check" style="color:var(--accent-blue);font-size:1.2rem;"></i>
                     <h2 style="font-size:1.1rem;font-weight:700;">Counselling Cadence Summary</h2>
                 </div>
-                <div class="summary-filters" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-                    <div style="display:flex;align-items:center;gap:4px;">
-                        <label style="font-size:0.78rem;color:var(--text-muted);white-space:nowrap;">From:</label>
-                        <input type="date" id="summaryFromDate" style="background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border-color);border-radius:6px;padding:5px 8px;font-size:0.78rem;">
-                    </div>
-                    <div style="display:flex;align-items:center;gap:4px;">
-                        <label style="font-size:0.78rem;color:var(--text-muted);white-space:nowrap;">To:</label>
-                        <input type="date" id="summaryToDate" style="background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border-color);border-radius:6px;padding:5px 8px;font-size:0.78rem;">
-                    </div>
-                    <button class="btn-filter" id="summaryFilterBtn" style="padding:5px 14px;border:none;border-radius:6px;background:linear-gradient(135deg,var(--accent-blue),var(--accent-purple));color:white;font-weight:600;font-size:0.78rem;cursor:pointer;">
-                        <i class="fas fa-filter"></i> Apply
-                    </button>
-                    <button class="btn-refresh" id="summaryRefreshBtn" style="padding:5px 10px;border:1px solid var(--border-color);border-radius:6px;background:transparent;color:var(--text-muted);font-size:0.78rem;cursor:pointer;">
-                        <i class="fas fa-sync-alt"></i>
-                    </button>
-                </div>
+                <span style="font-size:0.75rem;color:var(--text-muted);">
+                    <i class="fas fa-filter"></i> Follows the top Filters (Date + Region / BH / RCL / Center / CL)
+                </span>
             </div>
-            <div class="card" style="overflow-x:auto;">
+            <div class="card" style="overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:thin;">
                 <div id="summaryLoading" style="text-align:center;padding:40px;color:var(--text-muted);">
                     <i class="fas fa-spinner fa-spin" style="font-size:1.5rem;margin-bottom:10px;"></i>
                     <br>Loading summary data...
@@ -178,7 +177,7 @@
                     <br><span id="summaryErrorMsg">Failed to load summary data.</span>
                 </div>
                 <div id="summaryTableWrap" style="display:none;">
-                    <table class="summary-table" id="summaryTable" style="border-collapse: collapse; width: 100%;">
+                    <table class="summary-table" id="summaryTable" style="width: 100%;">
                         <thead>
                             <tr style="background:var(--bg-secondary);">
                                 <th rowspan="2" style="padding:10px;border-bottom:1px solid var(--border-color); vertical-align: middle;">Email</th>
@@ -224,10 +223,10 @@
                 </div>
             </div>
 
-            <!-- View 2: Region Bar Chart -->
+            <!-- View 2: Region/Center Bar Chart -->
             <div class="card chart-card">
                 <div class="card-header">
-                    <h2><i class="fas fa-map-marker-alt"></i> Region-Wise Form Submissions</h2>
+                    <h2><i class="fas fa-map-marker-alt"></i> <span id="regionChartTitle">Region-Wise Form Submissions</span></h2>
                 </div>
                 <div class="card-body" style="height: 350px;">
                     <canvas id="customRegionChart"></canvas>

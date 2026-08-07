@@ -51,6 +51,9 @@ async function initDashboard() {
     window._regionById = {};
     (orgData.regions || []).forEach(r => { window._regionById[r.id] = r.name; });
 
+    // Email metadata map for unified filters (rebuilt fully by loadSummaryData)
+    buildEmailMeta(sheetRows);
+
     // Build org data from sheet rows
     function buildOrgDataFromSheet(rows) {
         const regions = {};
@@ -590,6 +593,7 @@ async function initDashboard() {
 
         updateOverviewChart();
         updateTeamList(centers);
+        refreshAllFromFilters();
     }
 
     let lastCenters = [];
@@ -892,6 +896,7 @@ async function initDashboard() {
     document.getElementById('filterBH').addEventListener('change', () => onFilterChange('bh'));
     document.getElementById('filterRCL').addEventListener('change', () => onFilterChange('rcl'));
     document.getElementById('filterCenter').addEventListener('change', () => onFilterChange('center'));
+    document.getElementById('filterCL').addEventListener('change', () => onFilterChange('cl'));
 
     document.getElementById('filterResetBtn').addEventListener('click', () => {
         const role = ROLES[currentRole];
@@ -925,10 +930,10 @@ async function initDashboard() {
     document.getElementById('refreshBtn')?.addEventListener('click', function () {
         this.querySelector('i').classList.add('loading');
         showToast('Refreshing...', 'info');
-        setTimeout(() => { 
-            this.querySelector('i').classList.remove('loading'); 
-            initDashboard();
-        }, 1200);
+        setTimeout(() => {
+            this.querySelector('i').classList.remove('loading');
+            location.reload();
+        }, 400);
     });
 
     document.addEventListener('keydown', (e) => {
@@ -957,6 +962,7 @@ async function initDashboard() {
     initChart();
     applyRoleRestrictions();
     updateDashboard();
+    initCustomNewDashboard();
 
     const welcomeSection = document.querySelector('.welcome-section');
     if (welcomeSection) {
@@ -999,14 +1005,16 @@ async function initCounsellingSummary() {
     window.__summaryInitDone = true;
     if (!document.getElementById('counsellingSummary')) return;
 
+    // Top filter date defaults (month-to-date) so every block starts consistent.
+    // Built from LOCAL date parts — toISOString() would shift a day in non-UTC zones.
     const now = new Date();
-    document.getElementById('summaryFromDate').value = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-    document.getElementById('summaryToDate').value = now.toISOString().split('T')[0];
+    const toInputDate = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    const startEl = document.getElementById('customStartDate');
+    const endEl = document.getElementById('customEndDate');
+    if (startEl && !startEl.value) startEl.value = toInputDate(new Date(now.getFullYear(), now.getMonth(), 1));
+    if (endEl && !endEl.value) endEl.value = toInputDate(now);
 
     await loadSummaryData();
-
-    document.getElementById('summaryFilterBtn')?.addEventListener('click', loadSummaryData);
-    document.getElementById('summaryRefreshBtn')?.addEventListener('click', loadSummaryData);
 }
 
 async function loadSummaryData() {
@@ -1018,6 +1026,7 @@ async function loadSummaryData() {
         empty: document.getElementById('summaryEmpty'),
         tbody: document.getElementById('summaryBody')
     };
+    _summaryEls = els;
 
     els.loading.style.display = 'block';
     els.error.style.display = 'none';
@@ -1038,25 +1047,21 @@ async function loadSummaryData() {
         const sessionEmail = (session.email || '').toLowerCase().trim();
 
         const { roleMap, bhOfUser, rclOfUser, rbhOfUser } = buildSummaryHierarchy(sheetRows);
-        
+
         if (sessionEmail && session.role && !roleMap[sessionEmail]) {
             roleMap[sessionEmail] = session.role;
         }
 
+        buildEmailMeta(sheetRows);
+
         const visibleEmails = getSummaryVisibleEmails(sessionEmail, roleMap, bhOfUser, rclOfUser, rbhOfUser, session.role);
 
-        const fromDate = document.getElementById('summaryFromDate').value;
-        const toDate = document.getElementById('summaryToDate').value;
-
-        const summary = processResponses(rows, roleMap, fromDate, toDate, visibleEmails);
+        // Cache raw data so filter changes re-render every block without re-fetching
+        _summaryCache = { rows, roleMap, visibleEmails };
 
         els.loading.style.display = 'none';
-        if (summary.length === 0) { els.empty.style.display = 'block'; return; }
 
-        renderSummaryTable(els.tbody, summary);
-        els.tableWrap.style.display = 'block';
-
-        initRecentAndCharts(rows, roleMap);
+        refreshAllFromFilters();
 
     } catch (err) {
         console.error('Summary error:', err);
@@ -1146,6 +1151,170 @@ function parseDateFlexible(str) {
     }
     const d = new Date(str);
     return isNaN(d) ? null : d;
+}
+
+// ===============================================
+// UNIFIED TOP FILTERS — Start/End Date + Region/BH/RCL/Center/CL
+// drive EVERY dashboard block (summary, KPIs, charts, activity, org tree)
+// ===============================================
+
+let _summaryCache = { rows: [], roleMap: {}, visibleEmails: new Set() };
+let _summaryEls = null;
+
+const _norm = s => String(s || '').replace(/\s+/g, '').toLowerCase();
+
+function getTopFilterState() {
+    return {
+        start: (document.getElementById('customStartDate') || {}).value || '',
+        end: (document.getElementById('customEndDate') || {}).value || '',
+        region: (document.getElementById('filterRegion') || {}).value || '',
+        bh: (document.getElementById('filterBH') || {}).value || '',
+        rcl: (document.getElementById('filterRCL') || {}).value || '',
+        center: (document.getElementById('filterCenter') || {}).value || '',
+        cl: (document.getElementById('filterCL') || {}).value || ''
+    };
+}
+
+function getRowDate(row) {
+    const formType = row['Form Type'] || '';
+    let dateStr = formType === 'Audits' ? row['Audit Date'] : row['Meeting Date'];
+    if (!dateStr && row['Submitted At']) dateStr = String(row['Submitted At']).split('T')[0];
+    return parseDateFlexible(dateStr);
+}
+
+function getRowRegionName(row) {
+    return (row['Region (Audit)'] || row['Region (1-1)'] || '').trim();
+}
+
+function getRowCenterName(row) {
+    return (row['Center (Audit)'] || row['Center (1-1)'] || '').trim();
+}
+
+// Email metadata from Sheet2: maps each submitter to their BH/RCL/RBH/region/center,
+// plus a center-name -> meta lookup for rows whose submitter is not in Sheet2.
+function buildEmailMeta(sheetRows) {
+    window._emailMeta = {};
+    window._centerMetaByName = {};
+    (sheetRows || []).forEach(row => {
+        const email = (row.mail_id || '').toLowerCase().trim();
+        const meta = {
+            bh: (row.BH || '').trim(),
+            rcl: (row.RCL || '').trim(),
+            rbh: (row.RBH || '').trim(),
+            region: (row.Region || '').trim(),
+            center: (row.Center || '').trim()
+        };
+        if (email) window._emailMeta[email] = meta;
+        if (meta.center) window._centerMetaByName[_norm(meta.center)] = meta;
+    });
+}
+
+// Does a form row pass the current top filters?
+// - includeDate: also apply the Start/End Date range
+// - Region: by the row's own region field (fallback: submitter's Sheet2 region)
+// - BH / RCL: by the submitter's Sheet2 mapping (fallback: row center -> Sheet2 mapping)
+// - Center: by the row center (or submitter center) matching the selected center's name
+// - CL: submitter email must equal the selected CL
+function rowMatchesUnifiedFilters(row, { includeDate = true } = {}) {
+    const f = getTopFilterState();
+    const email = (row['Submitted By'] || '').toLowerCase().trim();
+    const meta = (window._emailMeta || {})[email] || {};
+    const rowRegion = _norm(getRowRegionName(row));
+    const rowCenter = _norm(getRowCenterName(row));
+    const cMeta = window._centerMetaByName || {};
+
+    if (includeDate) {
+        const rowDate = getRowDate(row);
+        if (rowDate) {
+            if (f.start && rowDate < new Date(f.start + 'T00:00:00')) return false;
+            if (f.end && rowDate > new Date(f.end + 'T23:59:59')) return false;
+        } else if (f.start || f.end) {
+            return false;
+        }
+    }
+
+    if (f.region) {
+        const regionName = _norm((window._regionById || {})[f.region] || '');
+        const subRegion = _norm(meta.region);
+        if (rowRegion && rowRegion !== regionName) return false;
+        if (!rowRegion && subRegion && subRegion !== regionName) return false;
+        if (!rowRegion && !subRegion) return false;
+    }
+
+    if (f.bh) {
+        const bhSel = _norm(f.bh);
+        const uBh = _norm(meta.bh);
+        const cBh = rowCenter ? _norm((cMeta[rowCenter] || {}).bh) : '';
+        if (uBh) { if (uBh !== bhSel) return false; }
+        else if (cBh) { if (cBh !== bhSel) return false; }
+        else return false;
+    }
+
+    if (f.rcl) {
+        const rclSel = _norm(f.rcl);
+        const uRcl = _norm(meta.rcl);
+        const cRcl = rowCenter ? _norm((cMeta[rowCenter] || {}).rcl) : '';
+        if (uRcl) { if (uRcl !== rclSel) return false; }
+        else if (cRcl) { if (cRcl !== rclSel) return false; }
+        else return false;
+    }
+
+    if (f.center) {
+        const clMeta = (window._emailMeta || {})[f.center.toLowerCase().trim()] || {};
+        const centerName = _norm(clMeta.center || f.center);
+        const rowCenterName = rowCenter || _norm(meta.center);
+        if (!rowCenterName || rowCenterName !== centerName) return false;
+    }
+
+    if (f.cl && email !== f.cl.toLowerCase().trim()) return false;
+
+    return true;
+}
+
+function getFilteredUnitRows(rows, { includeDate = true } = {}) {
+    return (rows || []).filter(r => rowMatchesUnifiedFilters(r, { includeDate }));
+}
+
+// Re-render the summary table from cached data using the CURRENT top filters
+function renderSummaryFromCache() {
+    const els = _summaryEls;
+    if (!els || !_summaryCache.rows) return;
+    const { rows, roleMap, visibleEmails } = _summaryCache;
+
+    const fromDate = (document.getElementById('customStartDate') || {}).value || '';
+    const toDate = (document.getElementById('customEndDate') || {}).value || '';
+
+    // Unit filters are applied at row level; processResponses re-applies the date range
+    const summary = processResponses(getFilteredUnitRows(rows), roleMap, fromDate, toDate, visibleEmails);
+
+    if (summary.length === 0) {
+        els.empty.style.display = 'block';
+        els.tableWrap.style.display = 'none';
+        els.tbody.innerHTML = '';
+        return;
+    }
+    els.empty.style.display = 'none';
+    renderSummaryTable(els.tbody, summary);
+    els.tableWrap.style.display = 'block';
+}
+
+// Refresh EVERY block (summary, KPIs, charts, activity, org tree) from cached rows
+function refreshAllFromFilters() {
+    const rows = _summaryCache.rows || [];
+    const roleMap = _summaryCache.roleMap || {};
+
+    const session = JSON.parse(localStorage.getItem('cadence-session') || '{}');
+    if (session.email && !roleMap[session.email]) roleMap[session.email] = session.role || 'CL';
+
+    renderSummaryFromCache();
+
+    _overviewFormRows = rows;              // master (unfiltered) rows for chart/KPI loops
+    _overviewRoleMap = roleMap;
+    buildFormCountMap(getFilteredUnitRows(rows));                         // org-tree counts: unit + date
+    loadRecentActivity(getFilteredUnitRows(rows, { includeDate: false }), roleMap);
+    updateOverviewChart();                                                // applies all filters per row
+    if (window.refreshTeamList) window.refreshTeamList();
+    updateCustomNewDashboard();                                           // applies all filters per row
 }
 
 // Logic implementations strictly required by prompt
@@ -1326,29 +1495,14 @@ function buildFormCountMap(rows) {
     return map;
 }
 
-function initRecentAndCharts(formRows, roleMap) {
-    if (window.__recentChartsDone) return;
-    window.__recentChartsDone = true;
-
-    _overviewFormRows = formRows || [];
-    _overviewRoleMap = roleMap || {};
-
-    const session = JSON.parse(localStorage.getItem('cadence-session') || '{}');
-    if (session.email && !_overviewRoleMap[session.email]) {
-        _overviewRoleMap[session.email] = session.role || 'CL';
-    }
-
-    buildFormCountMap(_overviewFormRows);
-    loadRecentActivity(_overviewFormRows, _overviewRoleMap);
-    updateOverviewChart();
-    if (window.refreshTeamList) window.refreshTeamList();
-    initCustomNewDashboard();
-}
-
 function loadRecentActivity(rows, roleMap) {
     const list = document.getElementById('activityList');
     const countEl = document.getElementById('activityCount');
     if (!list) return;
+
+    // Recent activity follows the unit filters (Region/BH/RCL/Center/CL);
+    // the feed itself is inherently "today", so the date range is not applied here.
+    rows = getFilteredUnitRows(rows, { includeDate: false });
 
     const todayStr = new Date().toISOString().split('T')[0];
     const todayEntries = rows.filter(r => {
@@ -1480,9 +1634,6 @@ async function updateOverviewChart() {
     const clVal = (document.getElementById('filterCL')?.value || '').toLowerCase().trim();
     const personEmail = clVal || rclVal || bhVal;
 
-    const regionSel = (document.getElementById('filterRegion')?.value || '').trim();
-    const regionName = regionSel ? ((window._regionById || {})[regionSel] || '') : '';
-
     const period = document.getElementById('chartPeriod')?.value || 'monthly';
     const chartType = document.getElementById('chartType')?.value || 'both';
     const { labels, starts } = getPeriodBuckets(period);
@@ -1495,22 +1646,17 @@ async function updateOverviewChart() {
 
     (rows || []).forEach(row => {
         const formType = row['Form Type'] || '';
+        if (formType !== 'Audits' && formType !== '1-1 & Training') return;
+        if (!rowMatchesUnifiedFilters(row)) return;
+
         let dateStr = '';
-        let rowRegion = '';
-        if (formType === 'Audits') {
-            dateStr = row['Audit Date'] || '';
-            rowRegion = (row['Region (Audit)'] || '').toLowerCase().trim();
-        } else if (formType === '1-1 & Training') {
-            dateStr = row['Meeting Date'] || '';
-            rowRegion = (row['Region (1-1)'] || '').toLowerCase().trim();
-        } else return;
+        if (formType === 'Audits') dateStr = row['Audit Date'] || '';
+        else dateStr = row['Meeting Date'] || '';
 
         const d = parseDateFlexible(dateStr);
         if (!d) return;
         const idx = bucketIndex(+d, starts);
         if (idx < 0) return;
-
-        if (regionName && rowRegion.replace(/\s+/g, '') !== regionName.toLowerCase().replace(/\s+/g, '')) return;
 
         const subEmail = (row['Submitted By'] || '').toLowerCase().trim();
         const isAudit = formType === 'Audits';
@@ -1559,15 +1705,14 @@ let customTrendChart = null;
 let customRegionChart = null;
 
 function initCustomNewDashboard() {
-    const startInput = document.getElementById('customStartDate');
-    const endInput = document.getElementById('customEndDate');
-    if(startInput) startInput.addEventListener('change', updateCustomNewDashboard);
-    if(endInput) endInput.addEventListener('change', updateCustomNewDashboard);
-    
-    document.getElementById('filterRegion')?.addEventListener('change', updateCustomNewDashboard);
-    document.getElementById('filterBH')?.addEventListener('change', updateCustomNewDashboard);
-    document.getElementById('filterRCL')?.addEventListener('change', updateCustomNewDashboard);
-    
+    if (!window.__customInitDone) {
+        window.__customInitDone = true;
+        const startInput = document.getElementById('customStartDate');
+        const endInput = document.getElementById('customEndDate');
+        // Date changes re-render every block; unit selects are handled by onFilterChange -> updateDashboard
+        if (startInput) startInput.addEventListener('change', refreshAllFromFilters);
+        if (endInput) endInput.addEventListener('change', refreshAllFromFilters);
+    }
     updateCustomNewDashboard();
 }
 
@@ -1575,17 +1720,14 @@ function updateCustomNewDashboard() {
     const rows = _overviewFormRows || [];
     const roleMap = _overviewRoleMap || {};
 
-    const startVal = document.getElementById('customStartDate')?.value;
-    const endVal = document.getElementById('customEndDate')?.value;
-    const startDate = startVal ? new Date(startVal) : null;
-    const endDate = endVal ? new Date(endVal + 'T23:59:59') : null;
-
-    const regionFilter = (document.getElementById('filterRegion')?.value || '').trim();
-    const regionNameFilter = regionFilter ? ((window._regionById || {})[regionFilter] || '') : '';
-
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
+
+    // Personal stats ("by me") follow the same top filters (unit scope + date range)
+    const session = JSON.parse(localStorage.getItem('cadence-session') || '{}');
+    const meEmail = (session.email || '').toLowerCase().trim();
+    let meSubmitted = 0, meMeetings = 0, meAudits = 0;
 
     let filteredCount = 0;
     let overallCount = 0; 
@@ -1594,37 +1736,38 @@ function updateCustomNewDashboard() {
 
     let trendMap = {}; 
     let regionMap = {}; 
+    let centerMap = {}; 
     let userStats = {}; 
+
+    // When a Region filter is set, the "Region-Wise" chart switches to center-wise mode
+    const regionMode = !getTopFilterState().region;
 
     rows.forEach(row => {
         const formType = row['Form Type'] || '';
         const email = (row['Submitted By'] || '').toLowerCase().trim();
         const role = (roleMap[email] || 'CL').toUpperCase();
-        
-        const rowRegion = (row['Region (Audit)'] || row['Region (1-1)'] || 'Unknown').trim();
-        
-        if (regionNameFilter && rowRegion.replace(/\s+/g, '').toLowerCase() !== regionNameFilter.replace(/\s+/g, '').toLowerCase()) return;
-        
-        let dateStr = formType === 'Audits' ? row['Audit Date'] : row['Meeting Date'];
-        if (!dateStr && row['Submitted At']) dateStr = row['Submitted At'].split('T')[0];
-        const rowDate = parseDateFlexible(dateStr);
-        const dateKey = rowDate ? rowDate.toISOString().split('T')[0] : 'Unknown';
 
-        let isMTD = false;
-        if (rowDate && rowDate.getMonth() === currentMonth && rowDate.getFullYear() === currentYear) {
-            mtdCount++;
-            isMTD = true;
-        }
-
+        // Unit scope (Region/BH/RCL/Center/CL) — drives "Overall Submissions"
+        if (!rowMatchesUnifiedFilters(row, { includeDate: false })) return;
         overallCount++;
 
-        let inDateRange = true;
-        if (startDate && rowDate < startDate) inDateRange = false;
-        if (endDate && rowDate > endDate) inDateRange = false;
+        const rowDate = getRowDate(row);
+        const dateKey = rowDate ? rowDate.toISOString().split('T')[0] : 'Unknown';
+        const rowRegion = getRowRegionName(row) || 'Unknown';
 
-        if (inDateRange) {
+        if (rowDate && rowDate.getMonth() === currentMonth && rowDate.getFullYear() === currentYear) mtdCount++;
+
+        // Unit scope + date range — drives Filtered/MTD KPIs, trend, region chart, top/bottom
+        if (rowMatchesUnifiedFilters(row)) {
             filteredCount++;
             if (['BH', 'CL', 'RCL', 'RBH'].includes(role)) membersSet.add(email);
+
+            // "Done by Me" — only the logged-in user's rows inside the filter scope
+            if (meEmail && email === meEmail) {
+                meSubmitted++;
+                if (formType === 'Audits') meAudits++;
+                else if (formType === '1-1 & Training') meMeetings++;
+            }
 
             if (dateKey !== 'Unknown') {
                 if (!trendMap[dateKey]) trendMap[dateKey] = { audit: 0, meeting: 0 };
@@ -1633,11 +1776,17 @@ function updateCustomNewDashboard() {
             }
 
             if (rowRegion !== 'Unknown') regionMap[rowRegion] = (regionMap[rowRegion] || 0) + 1;
-        }
 
-        if (!userStats[email]) userStats[email] = { email: email, role: role, overall: 0, mtd: 0 };
-        userStats[email].overall++;
-        if (isMTD) userStats[email].mtd++;
+            if (!regionMode) {
+                const meta = (window._emailMeta || {})[email] || {};
+                const center = getRowCenterName(row) || meta.center || 'Unknown';
+                centerMap[center] = (centerMap[center] || 0) + 1;
+            }
+
+            if (!userStats[email]) userStats[email] = { email: email, role: role, overall: 0, mtd: 0 };
+            userStats[email].overall++;
+            if (rowDate && rowDate.getMonth() === currentMonth && rowDate.getFullYear() === currentYear) userStats[email].mtd++;
+        }
     });
 
     const elFiltered = document.getElementById('newKpiFiltered');
@@ -1648,6 +1797,12 @@ function updateCustomNewDashboard() {
     if(elMTD) elMTD.textContent = mtdCount;
     const elMembers = document.getElementById('newKpiMembers');
     if(elMembers) elMembers.textContent = membersSet.size;
+    const elMeSubmitted = document.getElementById('newKpiMeSubmitted');
+    if (elMeSubmitted) elMeSubmitted.textContent = meSubmitted;
+    const elMeMeetings = document.getElementById('newKpiMeMeetings');
+    if (elMeMeetings) elMeMeetings.textContent = meMeetings;
+    const elMeAudits = document.getElementById('newKpiMeAudits');
+    if (elMeAudits) elMeAudits.textContent = meAudits;
 
     const trendDates = Object.keys(trendMap).sort();
     const auditData = trendDates.map(d => trendMap[d].audit);
@@ -1669,8 +1824,8 @@ function updateCustomNewDashboard() {
         });
     }
 
-    const regions = Object.keys(regionMap);
-    const regionCounts = regions.map(r => regionMap[r]);
+    const labels = regionMode ? Object.keys(regionMap) : Object.keys(centerMap);
+    const counts = regionMode ? labels.map(r => regionMap[r]) : labels.map(c => centerMap[c]);
 
     const ctxRegion = document.getElementById('customRegionChart')?.getContext('2d');
     if (ctxRegion) {
@@ -1678,12 +1833,14 @@ function updateCustomNewDashboard() {
         customRegionChart = new Chart(ctxRegion, {
             type: 'bar',
             data: {
-                labels: regions,
-                datasets: [{ label: 'Form Submissions (Filtered)', data: regionCounts, backgroundColor: '#22c55e', borderRadius: 4 }]
+                labels: labels,
+                datasets: [{ label: regionMode ? 'Form Submissions by Region (Filtered)' : 'Form Submissions by Center (Filtered)', data: counts, backgroundColor: regionMode ? '#22c55e' : '#3b82f6', borderRadius: 4 }]
             },
-            options: { responsive: true, maintainAspectRatio: false }
+            options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { autoSkip: false, maxRotation: 45 } } } }
         });
     }
+    const regionChartTitle = document.getElementById('regionChartTitle');
+    if (regionChartTitle) regionChartTitle.textContent = regionMode ? 'Region-Wise Form Submissions' : 'Center-Wise Form Submissions';
 
     let eligibleUsers = Object.values(userStats).filter(u => ['BH', 'CL', 'RCL', 'CM'].includes(u.role));
     eligibleUsers.sort((a, b) => b.overall - a.overall);
