@@ -118,7 +118,7 @@
             </div>
         </section>
 
-        <!-- NEW KPIs (Added specifically for new requirements) -->
+        <!-- NEW KPIs -->
         <section class="kpi-section" style="margin-bottom: 20px;">
             <div class="kpi-card" data-aos="fade-up">
                 <div class="kpi-icon blue"><i class="fas fa-filter"></i></div>
@@ -138,7 +138,7 @@
             </div>
         </section>
 
-        <!-- OLD KPI CARDS (Preserved functionality) -->
+        <!-- OLD KPI CARDS -->
         <section class="kpi-section">
             <div class="kpi-card" data-aos="fade-up">
                 <div class="kpi-icon blue"><i class="fas fa-clipboard-list"></i></div>
@@ -162,7 +162,7 @@
             </div>
         </section>
 
-        <!-- ========== COUNSELLING SUMMARY SECTION (Moved Top & Headers Corrected) ========== -->
+        <!-- ========== COUNSELLING SUMMARY SECTION ========== -->
         <section class="dashboard-section" id="counsellingSummary" style="padding:0 28px 28px;">
             <div class="section-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
                 <div class="section-title" style="display:flex;align-items:center;gap:10px;">
@@ -201,18 +201,21 @@
                             <tr style="background:var(--bg-secondary);">
                                 <th rowspan="2" style="padding:10px;border-bottom:1px solid var(--border-color); vertical-align: middle;">Email</th>
                                 <th rowspan="2" style="padding:10px;border-bottom:1px solid var(--border-color); vertical-align: middle;">Role</th>
-                                <th colspan="4" style="padding:10px;text-align:center;background:rgba(59,130,246,0.08);border-bottom:1px solid var(--border-color);">Audits</th>
-                                <th colspan="4" style="padding:10px;text-align:center;background:rgba(168,85,247,0.08);border-bottom:1px solid var(--border-color);">1-1 Meetings</th>
+                                <th colspan="5" style="padding:10px;text-align:center;background:rgba(59,130,246,0.08);border-bottom:1px solid var(--border-color);">Audits</th>
+                                <th colspan="5" style="padding:10px;text-align:center;background:rgba(168,85,247,0.08);border-bottom:1px solid var(--border-color);">1-1 Meetings</th>
                             </tr>
                             <tr style="background:var(--bg-secondary);">
-                                <th style="padding:10px;border-bottom:1px solid var(--border-color);">Total</th>
-                                <th style="padding:10px;border-bottom:1px solid var(--border-color);">Daily Avg</th>
-                                <th style="padding:10px;border-bottom:1px solid var(--border-color);">Weekly Avg</th>
-                                <th style="padding:10px;border-bottom:1px solid var(--border-color);">Status</th>
-                                <th style="padding:10px;border-bottom:1px solid var(--border-color);">Total</th>
-                                <th style="padding:10px;border-bottom:1px solid var(--border-color);">Daily Avg</th>
-                                <th style="padding:10px;border-bottom:1px solid var(--border-color);">Weekly Avg</th>
-                                <th style="padding:10px;border-bottom:1px solid var(--border-color);">Status</th>
+                                <th style="padding:10px;border-bottom:1px solid var(--border-color);">No of Audits</th>
+                                <th style="padding:10px;border-bottom:1px solid var(--border-color);">Audits Daily Avg</th>
+                                <th style="padding:10px;border-bottom:1px solid var(--border-color);">Audit Status on Day Basis</th>
+                                <th style="padding:10px;border-bottom:1px solid var(--border-color);">Audits Weekly Avg</th>
+                                <th style="padding:10px;border-bottom:1px solid var(--border-color);">Audit Status on weekly Basis</th>
+                                
+                                <th style="padding:10px;border-bottom:1px solid var(--border-color);">No of Meetings</th>
+                                <th style="padding:10px;border-bottom:1px solid var(--border-color);">1-1 meet Daily Avg</th>
+                                <th style="padding:10px;border-bottom:1px solid var(--border-color);">1-1 meet Status on Day Basis</th>
+                                <th style="padding:10px;border-bottom:1px solid var(--border-color);">1-1 meet Weekly Avg</th>
+                                <th style="padding:10px;border-bottom:1px solid var(--border-color);">Status on week Basis</th>
                             </tr>
                         </thead>
                         <tbody id="summaryBody"></tbody>
@@ -225,7 +228,7 @@
             </div>
         </section>
 
-        <!-- MAIN DASHBOARD GRID (Views placed immediately beneath) -->
+        <!-- MAIN DASHBOARD GRID -->
         <section class="dashboard-grid">
 
             <!-- View 1: Trend Line (Audit vs 1-1) -->
@@ -248,7 +251,7 @@
                 </div>
             </div>
 
-            <!-- View 3: Top 10 BH, CL, RCL, CM -->
+            <!-- View 3: Top 10 Performers -->
             <div class="card">
                 <div class="card-header">
                     <h2><i class="fas fa-trophy" style="color: gold;"></i> Top 10 Performers</h2>
@@ -267,7 +270,7 @@
                 </div>
             </div>
 
-            <!-- View 4: Bottom 10 BH, CL, RCL, CM -->
+            <!-- View 4: Bottom 10 Performers -->
             <div class="card">
                 <div class="card-header">
                     <h2><i class="fas fa-arrow-down" style="color: red;"></i> Bottom 10 Performers</h2>
