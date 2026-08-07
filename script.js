@@ -5,15 +5,19 @@
 
 document.addEventListener('DOMContentLoaded', initDashboard);
 
+// Also run if DOMContentLoaded already fired
 if (document.readyState !== 'loading') initDashboard();
 
 async function initDashboard() {
+    // Prevent double-init
     if (window.__cadenceInitDone) return;
     window.__cadenceInitDone = true;
 
+    // ========== THEME (from Settings > Appearance) ==========
     const savedTheme = localStorage.getItem('cadence-theme') || 'dark';
     document.documentElement.setAttribute('data-theme', savedTheme);
 
+    // ========== SESSION CHECK ==========
     const session = JSON.parse(localStorage.getItem('cadence-session') || '{}');
     if (!session.email) {
         window.location.href = 'login.html';
@@ -22,7 +26,9 @@ async function initDashboard() {
 
     try {
 
+    // =============================================
     // 1. FETCH LIVE DATA FROM GOOGLE SHEETS
+    // =============================================
     let sheetRows = [];
     let orgData = { regions: [] };
 
@@ -34,20 +40,27 @@ async function initDashboard() {
     } catch (error) {
         console.error('Failed to fetch sheet data:', error);
         showToast('Failed to load sheet data. Using cached data.', 'error');
+        // Try to load from localStorage
         const cached = localStorage.getItem('cadence-org-data');
-        if (cached) orgData = JSON.parse(cached);
+        if (cached) {
+            orgData = JSON.parse(cached);
+        }
     }
 
+    // Region id → name map (module-level access for the overview chart)
     window._regionById = {};
     (orgData.regions || []).forEach(r => { window._regionById[r.id] = r.name; });
 
+    // Build org data from sheet rows
     function buildOrgDataFromSheet(rows) {
         const regions = {};
         const allUsers = {};
-        const rbhManagedBHs = {};   
-        const rbhManagedRCLs = {};  
-        const rclManagedBHs = {};   
+        // Track which BHs/RCLs each hierarchy user manages
+        const rbhManagedBHs = {};   // rbhEmail -> Set of bhEmail
+        const rbhManagedRCLs = {};  // rbhEmail -> Set of rclEmail
+        const rclManagedBHs = {};   // rclEmail -> Set of bhEmail
 
+        // First pass: collect all users and their hierarchy
         rows.forEach(row => {
             const email = row.mail_id ? row.mail_id.toLowerCase().trim() : '';
             const rbhEmail = row.RBH ? row.RBH.toLowerCase().trim() : '';
@@ -56,19 +69,23 @@ async function initDashboard() {
             const region = row.Region || 'Unknown';
             const center = row.Center || '';
 
+            // Track RBH → BH mapping
             if (rbhEmail && rbhEmail !== '-' && bhEmail && bhEmail !== '-') {
                 if (!rbhManagedBHs[rbhEmail]) rbhManagedBHs[rbhEmail] = new Set();
                 rbhManagedBHs[rbhEmail].add(bhEmail);
             }
+            // Track RBH → RCL mapping
             if (rbhEmail && rbhEmail !== '-' && rclEmail && rclEmail !== '-') {
                 if (!rbhManagedRCLs[rbhEmail]) rbhManagedRCLs[rbhEmail] = new Set();
                 rbhManagedRCLs[rbhEmail].add(rclEmail);
             }
+            // Track RCL → BH mapping
             if (rclEmail && rclEmail !== '-' && bhEmail && bhEmail !== '-') {
                 if (!rclManagedBHs[rclEmail]) rclManagedBHs[rclEmail] = new Set();
                 rclManagedBHs[rclEmail].add(bhEmail);
             }
 
+            // Store user
             if (email) {
                 const empTypeRaw = (row.employee_type || 'CL').toUpperCase();
                 allUsers[email] = {
@@ -83,6 +100,7 @@ async function initDashboard() {
                 };
             }
 
+            // Store RBH
             if (rbhEmail && rbhEmail !== '-' && !allUsers[rbhEmail]) {
                 allUsers[rbhEmail] = {
                     email: rbhEmail,
@@ -94,6 +112,7 @@ async function initDashboard() {
                 };
             }
 
+            // Store RCL
             if (rclEmail && rclEmail !== '-' && !allUsers[rclEmail]) {
                 allUsers[rclEmail] = {
                     email: rclEmail,
@@ -104,6 +123,7 @@ async function initDashboard() {
                 };
             }
 
+            // Store BH
             if (bhEmail && bhEmail !== '-' && !allUsers[bhEmail]) {
                 allUsers[bhEmail] = {
                     email: bhEmail,
@@ -113,6 +133,7 @@ async function initDashboard() {
                 };
             }
 
+            // Build region structure
             if (!regions[region]) {
                 regions[region] = {
                     id: region.toLowerCase().replace(/[^a-z0-9]/g, '-'),
@@ -125,6 +146,7 @@ async function initDashboard() {
 
             const regionData = regions[region];
 
+            // Add RCL
             if (rclEmail && rclEmail !== '-' && !regionData.rcls[rclEmail]) {
                 regionData.rcls[rclEmail] = {
                     id: rclEmail,
@@ -133,6 +155,7 @@ async function initDashboard() {
                 };
             }
 
+            // Add BH
             if (bhEmail && bhEmail !== '-' && !regionData.bhs[bhEmail]) {
                 regionData.bhs[bhEmail] = {
                     id: bhEmail,
@@ -140,11 +163,13 @@ async function initDashboard() {
                     rcl: rclEmail,
                     centers: []
                 };
+                // Link BH to RCL
                 if (rclEmail && rclEmail !== '-' && regionData.rcls[rclEmail]) {
                     regionData.rcls[rclEmail].bhs.push(bhEmail);
                 }
             }
 
+            // Add center
             if (center && center !== '-') {
                 const centerObj = {
                     id: email || center,
@@ -167,6 +192,7 @@ async function initDashboard() {
             }
         });
 
+        // Fill managedBHs / managedRCLs for hierarchy users
         Object.keys(rbhManagedBHs).forEach(rbhEmail => {
             if (allUsers[rbhEmail]) allUsers[rbhEmail].managedBHs = [...rbhManagedBHs[rbhEmail]];
         });
@@ -561,29 +587,9 @@ async function initDashboard() {
         const cl = document.getElementById('filterCL').value;
 
         const centers = getVisibleData({ region, bh, rcl, center, cl });
-        const { agg, monthly } = aggregateTasks(centers);
-
-        animateCounter('totalTasks', agg.total);
-        animateCounter('completedTasks', agg.completed);
-        animateCounter('pendingTasks', agg.pending);
-        animateCounter('overdueTasks', agg.overdue);
-
-        updateTrend('trendTotal', agg.total, centers.length * 10);
-        updateTrend('trendCompleted', agg.completed, agg.total);
-        updateTrend('trendPending', agg.pending, agg.total);
-        updateTrend('trendOverdue', agg.overdue, agg.total);
 
         updateOverviewChart();
         updateTeamList(centers);
-    }
-
-    function updateTrend(elementId, value, total) {
-        const el = document.getElementById(elementId);
-        if (!el || total === 0) return;
-        const pct = Math.round((value / total) * 100);
-        const isDown = elementId.includes('Overdue') || elementId.includes('Pending');
-        el.className = `kpi-trend ${isDown ? (pct < 15 ? 'up' : 'down') : (pct > 50 ? 'up' : 'down')}`;
-        el.innerHTML = `<i class="fas fa-arrow-${isDown ? (pct < 15 ? 'up' : 'down') : (pct > 50 ? 'up' : 'down')}"></i><span>${pct}%</span>`;
     }
 
     let lastCenters = [];
@@ -778,25 +784,6 @@ async function initDashboard() {
                     </div>
                 </div>
             </div>`;
-    }
-
-    // 8. ANIMATED COUNTER
-    function animateCounter(elementId, target, duration = 800) {
-        const el = document.getElementById(elementId);
-        if (!el) return;
-        const start = parseInt(el.textContent) || 0;
-        if (start === target) return;
-        let current = start;
-        const increment = (target - start) / (duration / 16);
-        const timer = setInterval(() => {
-            current += increment;
-            if ((increment > 0 && current >= target) || (increment < 0 && current <= target) || increment === 0) {
-                el.textContent = target;
-                clearInterval(timer);
-            } else {
-                el.textContent = Math.floor(current);
-            }
-        }, 16);
     }
 
     // 9. CHART INITIALIZATION
