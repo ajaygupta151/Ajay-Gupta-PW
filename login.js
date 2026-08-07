@@ -203,10 +203,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('forgotForm')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = document.getElementById('forgotEmail').value.trim();
-        const error = document.getElementById('forgotEmailError');
+        const errorEl = document.getElementById('forgotEmailError');
         const btn = document.getElementById('sendOtpBtn');
 
-        error.textContent = '';
+        errorEl.textContent = '';
 
         if (!email) { error.textContent = 'Email is required'; return; }
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { error.textContent = 'Invalid email format'; return; }
@@ -220,7 +220,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const user = await getUserByEmail(email);
             
             if (!user) {
-                error.textContent = 'No account found with this email';
+                errorEl.textContent = 'No account found with this email';
                 btn.querySelector('.btn-text').style.display = '';
                 btn.querySelector('.btn-loader').style.display = 'none';
                 btn.disabled = false;
@@ -235,7 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Send OTP by email (Apps Script / EmailJS in production)
             const sendResult = await sendOTP(email, generatedOtp);
             if (!sendResult.success) {
-                error.textContent = sendResult.error || 'Failed to send OTP. Please try again.';
+                errorEl.textContent = sendResult.error || 'Failed to send OTP. Please try again.';
                 btn.querySelector('.btn-text').style.display = '';
                 btn.querySelector('.btn-loader').style.display = 'none';
                 btn.disabled = false;
@@ -250,9 +250,9 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.disabled = false;
 
             showToast(`OTP sent to ${email}`, 'success');
-        } catch (error) {
-            console.error('Send OTP error:', error);
-            error.textContent = 'Failed to send OTP. Please try again.';
+        } catch (err) {
+            console.error('Send OTP error:', err);
+            errorEl.textContent = 'Failed to send OTP. Please try again.';
             btn.querySelector('.btn-text').style.display = '';
             btn.querySelector('.btn-loader').style.display = 'none';
             btn.disabled = false;
@@ -350,7 +350,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function startOtpTimer() {
         const timerEl = document.getElementById('otpTimer');
         const resendEl = document.getElementById('resendOtp');
-        let seconds = 30;
+        let seconds = 300; // 5 minutes
 
         resendEl.style.display = 'none';
         timerEl.style.display = 'inline';
